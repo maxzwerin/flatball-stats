@@ -1,7 +1,7 @@
 import plotly.graph_objects as go
 
-X_MIN, X_MAX = -40, 40
-Y_MIN, Y_MAX = -20, 90
+X_MIN, X_MAX = 0, 80
+Y_MIN, Y_MAX = 0, 110
 
 STARTX = 'Start X (0 -> 1 = left sideline -> right sideline)'
 STARTY = 'Start Y (0 -> 1 = back of opponent endzone -> back of own endzone)'
@@ -10,13 +10,18 @@ ENDY = 'End Y (0 -> 1 = back of opponent endzone -> back of own endzone)'
 
 def createThrowCompass(title: str) -> go.Figure:
     fig = go.Figure()
+
     fig.update_layout(
         title=title,
-        xaxis=dict(range=[-40, 40], showticklabels=True, showgrid=True),
-        yaxis=dict(range=[-20, 90], showticklabels=True, showgrid=True),
+        xaxis=dict(range=[0, 80], showticklabels=False, showgrid=False),
+        yaxis=dict(range=[0, 110], showticklabels=False, showgrid=False),
         width=500,
         height=900
     )
+
+    fig.add_hline(y=20, line_width=3, line_color="black", layer="below")
+    fig.add_hline(y=90, line_width=3, line_color="black", layer="below")
+
     return fig
 
 def process_file(df):

@@ -12,7 +12,6 @@ from processor import process_file
 app = FastAPI(title="Demo")
 templates = Jinja2Templates(directory="templates")
 
-
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -34,7 +33,7 @@ async def upload_files(request: Request, files: List[UploadFile] = File(...)):
                 chart_html = fig.to_html(
                     full_html=False,
                     include_plotlyjs=False,
-                    config={"displayModeBar": True, "scrollZoom": True},
+                    config={"displayModeBar": True, "scrollZoom": False},
                 )
 
                 chart_blocks.append(
