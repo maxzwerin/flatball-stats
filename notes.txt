@@ -1,0 +1,111 @@
+files direct from statto:
+
+Defensive Blocks vs. ... .csv
+- Created
+- Point
+- Player
+- In own endzone?
+- In opponent's endzone?
+- Stall out?
+- Callahan?
+- Location X (0 -> 1 = left sideline -> right sideline)
+- Location Y (0 -> 1 = back of opponent endzone -> back of own endzone)
+
+Passes vs. ... .csv
+- Created	
+- Point	
+- Possession	
+- Thrower	
+- Receiver	
+- Turnover?	
+- Thrower error?	
+- Receiver error?	
+- Throw to endzone?	
+- Assist?	
+- Secondary assist?	
+- Huck?	
+- Swing?	
+- Dump?	
+- From sideline?	
+- To sideline?	
+- Distance (m)	
+- Forward distance (m)	
+- Left-to-right distance (m)	
+- Start X (0 -> 1 = left sideline -> right sideline)	
+- Start Y (0 -> 1 = back of opponent endzone -> back of own endzone)	
+- End X (0 -> 1 = left sideline -> right sideline)	
+- End Y (0 -> 1 = back of opponent endzone -> back of own endzone)
+
+Player Stats vs. ... .csv
+- Player	
+- Points played total	
+- Points played	
+- Offense points played	
+- Defense points played	
+- Offense points won	
+- Defense points won	
+- Touches	
+- Points played with touches	
+- Throws	
+- Catches	
+- Possessions initiated	
+- Assists	
+- Secondary assists	
+- Goals	
+- Turnovers	
+- Thrower errors	
+- Receiver errors	
+- Defensive blocks	
+- Stall outs for	
+- Stall outs against	
+- Total completed throw distance (m)	
+- Total completed throw gain (m)	
+- Average completed throw distance (m)	
+- Average completed throw gain (m)	
+- Total caught pass distance (m)	
+- Total caught pass gain (m)	
+- Average caught pass distance (m)	
+- Average caught pass gain (m)
+
+Points vs. ... .csv
+- Created	
+- Point	
+- Our score at pull	
+- Opponent's score at pull	
+- Started on offense?	
+- Scored?	
+- Possessions	
+- Passes	
+- Turnovers	
+- Thrower errors	
+- Receiver errors	
+- Defensive blocks	
+- Opposition errors	
+- Secondary assist	
+- Assist	
+- Goal
+
+Possessions vs. ... .csv
+- Created	
+- Point	
+- Possession	
+- Started point on offense?	
+- Scored?	
+- Start X (0 -> 1 = left sideline -> right sideline)	
+- Start Y (0 -> 1 = back of opponent endzone -> back of own endzone)	
+- Initiator	
+- Passes	
+- Secondary assist	
+- Assist	
+- Goal	
+- Thrower error	
+- Receiver error	
+- Stalled out
+
+Stall Outs Against vs. ... .csv
+- Created	
+- Point	
+- Possession	
+- Player	
+- Location X (0 -> 1 = left sideline -> right sideline)	
+- Location Y (0 -> 1 = back of opponent endzone -> back of own endzone)

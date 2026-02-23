@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demo</title>
+
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #161922;
+      --surface2: #1e2230;
+      --border:   #2a2f42;
+      --accent:   #4f8ef7;
+      --accent2:  #f7884f;
+      --ok:       #3ecf74;
+      --err:      #e05c5c;
+      --text:     #dde2f0;
+      --muted:    #6b738f;
+      --mono:     'Space Mono', monospace;
+      --sans:     'DM Sans', sans-serif;
+      --radius:   10px;
+      --shadow:   0 4px 32px rgba(0,0,0,.45);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 1.4rem 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--surface);
+    }
+
+    .logo { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+    .logo span { color: var(--accent2); }
+    .tagline { font-size: .8rem; color: var(--muted); margin-left: auto; font-family: var(--mono); }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .upload-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 2.5rem;
+      margin-bottom: 2.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    .upload-card h2 {
+      font-size: 1rem; font-weight: 600; margin-bottom: 1.4rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .upload-card h2::before {
+      content: ''; display: inline-block; width: 3px; height: 1rem;
+      background: var(--accent); border-radius: 2px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      background: var(--surface2);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(79,142,247,.06);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 2.2rem; margin-bottom: .6rem; }
+    .drop-label { font-size: .9rem; color: var(--muted); }
+    .drop-label strong { color: var(--accent); }
+
+    #file-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+
+    .file-chip {
+      display: flex; align-items: center; gap: .4rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 100px; padding: .3rem .75rem;
+      font-size: .78rem; font-family: var(--mono);
+    }
+    .file-chip .rm { cursor: pointer; color: var(--muted); font-size: 1rem; }
+    .file-chip .rm:hover { color: var(--err); }
+
+    @keyframes pop {
+      from { transform: scale(.85); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .form-footer {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-top: 1.4rem; gap: 1rem; flex-wrap: wrap;
+    }
+    .hint { font-size: .78rem; color: var(--muted); }
+
+    .submit-btn {
+      font-family: var(--mono); font-size: .85rem; font-weight: 700;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius); padding: .65rem 1.6rem;
+      cursor: pointer; letter-spacing: .03em;
+      transition: background .15s, transform .1s;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .submit-btn:hover   { background: #3a7be0; }
+    .submit-btn:active  { transform: scale(.97); }
+    .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    #progress {
+      display: none; align-items: center;
+      gap: .75rem; margin: 1rem 0;
+      font-size: .85rem; color: var(--muted);
+    }
+    #progress.active { display: flex; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #results-section h2 {
+      font-size: 1rem; font-weight: 600; margin-bottom: 1.2rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    #results-section h2::before {
+      content: ''; display: inline-block; width: 3px; height: 1rem;
+      background: var(--accent2); border-radius: 2px;
+    }
+
+    .file-result {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 2rem;
+      overflow: hidden; box-shadow: var(--shadow);
+      animation: slideIn .25s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(10px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .file-result.error { border-color: var(--err); }
+
+    .file-header {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .9rem 1.4rem; border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .filename { font-family: var(--mono); font-size: .85rem; }
+    .badge {
+      margin-left: auto; font-family: var(--mono);
+      font-size: .7rem; font-weight: 700;
+      padding: .25rem .65rem; border-radius: 100px; letter-spacing: .05em;
+    }
+    .badge.ok  { background: rgba(62,207,116,.15); color: var(--ok); border: 1px solid rgba(62,207,116,.3); }
+    .badge.err { background: rgba(224,92,92,.15); color: var(--err); border: 1px solid rgba(224,92,92,.3); }
+
+    .summary-details { padding: 1rem 1.4rem; border-bottom: 1px solid var(--border); }
+    .summary-details summary {
+      cursor: pointer; font-size: .82rem; font-weight: 600;
+      color: var(--muted); letter-spacing: .04em; text-transform: uppercase;
+      list-style: none; display: flex; align-items: center; gap: .4rem;
+    }
+    .summary-details summary::-webkit-details-marker { display: none; }
+    .summary-details summary::before { content: '▶'; font-size: .7rem; transition: transform .15s; }
+    .summary-details[open] summary::before { transform: rotate(90deg); }
+
+    .summary-table { width: 100%; border-collapse: collapse; margin-top: .8rem; font-size: .82rem; }
+    .summary-table td { padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+    .summary-table td:first-child { color: var(--muted); font-family: var(--mono); width: 220px; }
+
+    .charts { padding: 1.2rem 1.4rem; }
+    .chart-wrapper {
+      margin-bottom: 1.5rem; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .chart-wrapper:last-child { margin-bottom: 0; }
+
+    .chart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .55rem 1rem; background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .chart-label { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
+    .dl-btn {
+      font-family: var(--mono); font-size: .72rem; font-weight: 700;
+      color: var(--accent2); text-decoration: none;
+      padding: .25rem .7rem; border: 1px solid rgba(247,136,79,.3);
+      border-radius: 100px; transition: background .15s;
+    }
+    .dl-btn:hover { background: rgba(247,136,79,.1); }
+
+    .error-msg {
+      padding: 1.2rem 1.4rem; font-family: var(--mono);
+      font-size: .75rem; color: var(--err);
+      white-space: pre-wrap; overflow-x: auto;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<main>
+  <div class="upload-card">
+    <h2>Upload Files</h2>
+    <form id="upload-form"
+          hx-post="/upload"
+          hx-target="#results"
+          hx-swap="innerHTML"
+          hx-encoding="multipart/form-data"
+          hx-indicator="#progress">
+
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-icon">📂</div>
+        <p class="drop-label"><strong>Click to browse</strong> or drag &amp; drop files here</p>
+        <input type="file" name="files" id="file-input"
+               multiple accept=".csv,.xls,.xlsx,.json"
+               onchange="updateFileList(this.files)" />
+      </div>
+
+      <div id="file-list"></div>
+
+      <div class="form-footer">
+        <button type="submit" class="submit-btn" id="submit-btn" disabled>
+          Process Files
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div id="progress">
+    <div class="spinner"></div>
+    <span>Processing files…</span>
+  </div>
+
+  <div id="results-section" style="display:none;">
+    <h2>Results</h2>
+    <div id="results"></div>
+  </div>
+</main>
+
+<script>
+  let selectedFiles = new DataTransfer();
+
+  function updateFileList(files) {
+    for (const f of files) {
+      let dup = false;
+      for (const e of selectedFiles.files) {
+        if (e.name === f.name && e.size === f.size) { dup = true; break; }
+      }
+      if (!dup) selectedFiles.items.add(f);
+    }
+    syncInput();
+    renderChips();
+  }
+
+  function removeFile(name) {
+    const next = new DataTransfer();
+    for (const f of selectedFiles.files) {
+      if (f.name !== name) next.items.add(f);
+    }
+    selectedFiles = next;
+    syncInput();
+    renderChips();
+  }
+
+  function syncInput() {
+    document.getElementById('file-input').files = selectedFiles.files;
+    document.getElementById('submit-btn').disabled = selectedFiles.files.length === 0;
+  }
+
+  function renderChips() {
+    const list = document.getElementById('file-list');
+    list.innerHTML = '';
+    for (const f of selectedFiles.files) {
+      const chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.innerHTML = `
+        <span>📄</span>
+        <span>${f.name}</span>
+        <span class="rm" onclick="removeFile('${f.name}')" title="Remove">×</span>
+      `;
+      list.appendChild(chip);
+    }
+  }
+
+  const zone = document.getElementById('drop-zone');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    updateFileList(e.dataTransfer.files);
+  });
+
+  document.body.addEventListener('htmx:afterSwap', e => {
+    if (e.detail.target.id === 'results') {
+      document.getElementById('results-section').style.display = 'block';
+      document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  document.body.addEventListener('htmx:beforeRequest', () => {
+    document.getElementById('progress').classList.add('active');
+  });
+  document.body.addEventListener('htmx:afterRequest', () => {
+    document.getElementById('progress').classList.remove('active');
+  });
+</script>
+
+</body>
+</html>
