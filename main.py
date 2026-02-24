@@ -2,12 +2,33 @@ import traceback
 from typing import List
 from io import BytesIO
 
+from collections import defaultdict
+
 from fastapi import FastAPI, File, UploadFile, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import pandas as pd
+from pathlib import Path
 
-from processor import process_file
+from processor import *
+
+def detectDataset(fname):
+    name = Path(fname).stem.lower()
+
+    if "passes" in name:
+        return "passes", "Touchmaps"
+    elif "defensive blocks" in name:
+        return "defense", "Defensive Blocks"
+    elif "player stats" in name:
+        return "pstats", "Player Stats"
+    elif "points" in name:
+        return "points", "Points"
+    elif "possessions" in name:
+        return "possessions", "Possessions"
+    elif "stall outs against" in name:
+        return "stalls", "Stall Outs Against"
+    else:
+        raise ValueError(f"Unknown dataset: {fname}")
 
 app = FastAPI(title="Demo")
 templates = Jinja2Templates(directory="templates")
@@ -17,71 +38,80 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/upload", response_class=HTMLResponse)
-async def upload_files(request: Request, files: List[UploadFile] = File(...)):
-    results_html = []
+async def uploadFiles(request: Request, files: List[UploadFile] = File(...)):
+    player_graphs = defaultdict(list)
 
+    dataset_frames = defaultdict(list)
+    dataset_labels = {}
+
+    # read files and group them
     for file in files:
-        try:
-            contents = await file.read()
+        contents = await file.read()
+        df = pd.read_csv(BytesIO(contents))
 
-            # Load into pandas directly from memory?
-            df = pd.read_csv(BytesIO(contents))
-            figures, summary = process_file(df)
+        key, label = detectDataset(file.filename)
+        dataset_frames[key].append(df)
+        dataset_labels[key] = label
 
-            chart_blocks = []
-            for i, fig in enumerate(figures):
-                chart_html = fig.to_html(
-                    full_html=False,
-                    include_plotlyjs=False,
-                    config={"displayModeBar": True, "scrollZoom": False},
-                )
+    # process combined datasets
+    for key, dfs in dataset_frames.items():
+        df = pd.concat(dfs, ignore_index=True)
+        name = dataset_labels[key]
 
-                chart_blocks.append(
-                    f"""
-                    <div class="chart-wrapper">
-                        <div class="chart-header">
-                            <span class="chart-label">Chart {i + 1}</span>
-                        </div>
-                        {chart_html}
-                    </div>
-                    """
-                )
+    for key, dfs in dataset_frames.items():
+        df = pd.concat(dfs, ignore_index=True)
+        name = dataset_labels[key]
 
-            summary_rows = "".join(
-                f"<tr><td>{k}</td><td>{v}</td></tr>"
-                for k, v in summary.items()
+        if key == "passes":
+            results = processTouchmaps(df)
+        # elif key == "defense":
+        #     results = processDefense(df)
+        # elif key == "pstats":
+        #     results = processPStats(df)
+        # elif key == "points":
+        #     results = processPoints(df)
+        # elif key == "possessions":
+        #     results = processPossessions(df)
+        # elif key == "stalls":
+        #     results = processStalls(df)
+
+        for player, figs in results.items():
+            for fig in figs:
+                player_graphs[player].append((name, fig))
+
+    # building the html
+    sections = []
+
+    for player, items in sorted(player_graphs.items()):
+        chart_blocks = []
+
+        for i, (dataset, fig) in enumerate(items):
+            chart_html = fig.to_html(
+                full_html=False,
+                include_plotlyjs=False,
+                config={"displayModeBar": True, "responsive": True},
             )
 
-            results_html.append(
+            chart_blocks.append(
                 f"""
-                <section class="file-result success">
-                    <div class="file-header">
-                        <span class="filename">📄 {file.filename}</span>
-                        <span class="badge ok">Processed</span>
-                    </div>
-                    <details class="summary-details">
-                        <summary>Dataset Summary</summary>
-                        <table class="summary-table">
-                            <tbody>{summary_rows}</tbody>
-                        </table>
-                    </details>
-                    <div class="charts">{"".join(chart_blocks)}</div>
-                </section>
+                <div class="chart-wrapper">
+                    {chart_html}
+                </div>
                 """
             )
 
-        except Exception as exc:
-            tb = traceback.format_exc()
-            results_html.append(
-                f"""
-                <section class="file-result error">
-                    <div class="file-header">
-                        <span class="filename">📄 {file.filename}</span>
-                        <span class="badge err">Error</span>
-                    </div>
-                    <pre class="error-msg">{exc}\n\n{tb}</pre>
-                </section>
-                """
-            )
+        sections.append(
+            f"""
+            <section class="file-result success">
+                <div class="file-header">
+                    <span class="filename">{player}</span>
+                    <span class="badge ok">{len(items)} charts</span>
+                </div>
+                <div class="charts">
+                    {''.join(chart_blocks)}
+                </div>
+            </section>
+            """
+        )
 
-    return HTMLResponse("".join(results_html))
+    return HTMLResponse("".join(sections))

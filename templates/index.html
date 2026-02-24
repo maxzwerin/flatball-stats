@@ -27,7 +27,7 @@
       --muted:    #6b738f;
       --mono:     'Space Mono', monospace;
       --sans:     'DM Sans', sans-serif;
-      --radius:   10px;
+      --radius:   0px;
       --shadow:   0 4px 32px rgba(0,0,0,.45);
     }
 
@@ -180,26 +180,17 @@
     .badge.ok  { background: rgba(62,207,116,.15); color: var(--ok); border: 1px solid rgba(62,207,116,.3); }
     .badge.err { background: rgba(224,92,92,.15); color: var(--err); border: 1px solid rgba(224,92,92,.3); }
 
-    .summary-details { padding: 1rem 1.4rem; border-bottom: 1px solid var(--border); }
-    .summary-details summary {
-      cursor: pointer; font-size: .82rem; font-weight: 600;
-      color: var(--muted); letter-spacing: .04em; text-transform: uppercase;
-      list-style: none; display: flex; align-items: center; gap: .4rem;
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 1rem;
     }
-    .summary-details summary::-webkit-details-marker { display: none; }
-    .summary-details summary::before { content: '▶'; font-size: .7rem; transition: transform .15s; }
-    .summary-details[open] summary::before { transform: rotate(90deg); }
-
-    .summary-table { width: 100%; border-collapse: collapse; margin-top: .8rem; font-size: .82rem; }
-    .summary-table td { padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
-    .summary-table td:first-child { color: var(--muted); font-family: var(--mono); width: 220px; }
-
-    .charts { padding: 1.2rem 1.4rem; }
     .chart-wrapper {
-      margin-bottom: 1.5rem; border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      width: 100%;
     }
-    .chart-wrapper:last-child { margin-bottom: 0; }
 
     .chart-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -230,7 +221,6 @@
 
 <main>
   <div class="upload-card">
-    <h2>Upload Files</h2>
     <form id="upload-form"
           hx-post="/upload"
           hx-target="#results"
@@ -262,7 +252,6 @@
   </div>
 
   <div id="results-section" style="display:none;">
-    <h2>Results</h2>
     <div id="results"></div>
   </div>
 </main>
