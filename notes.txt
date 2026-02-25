@@ -1,3 +1,43 @@
+TODO LIST:
+----------------------------------------
+organization stuff
+[-] individual player graphs / stats rather than calling all at once
+    OR display team graphs / stats
+[-] toggle between games / select all games
+
+data stuff
+[-] figure out if correct files got uploaded --> auto-populate players / games
+[-] figure out how to organize player data / team data by game or all at once
+
+kinda both - this might actually be really annoying idk tho
+[-] adjustable huck distance
+[-] adjustable "short throw" distance
+
+FOR EACH PLAYER:
+- header: { total receptions, total yards, total goals, total drops }
+- touchmap graph
+- throwing & receiving vertical yard histogram
+
+FOR TEAM:
+- header: { all throws, non-scoring completions, assists, turnovers }
+- vertical yards / likelihood per distance of completion %, assist %, turn %
+- all midfield huck, sideline huck, sideline short, redzone, other passes
+- same ^ but normalized
+
+- O line specific graphs
+- D line specific graphs
+
+PER GAME:
+- heatmap of playtime
+
+PLAYER EFFICIENCY GRAPHS [ attempts / completion % ] :
+- hucks
+- sideline
+- redzone
+- other
+- initiation
+
+----------------------------------------
 files direct from statto:
 
 Defensive Blocks vs. ... .csv

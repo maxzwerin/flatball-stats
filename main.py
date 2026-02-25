@@ -1,34 +1,16 @@
 import traceback
 from typing import List
 from io import BytesIO
-
-from collections import defaultdict
-
 from fastapi import FastAPI, File, UploadFile, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import pandas as pd
 from pathlib import Path
+import uuid
 
-from processor import *
+from processor import processFiles
 
-def detectDataset(fname):
-    name = Path(fname).stem.lower()
-
-    if "passes" in name:
-        return "passes", "Touchmaps"
-    elif "defensive blocks" in name:
-        return "defense", "Defensive Blocks"
-    elif "player stats" in name:
-        return "pstats", "Player Stats"
-    elif "points" in name:
-        return "points", "Points"
-    elif "possessions" in name:
-        return "possessions", "Possessions"
-    elif "stall outs against" in name:
-        return "stalls", "Stall Outs Against"
-    else:
-        raise ValueError(f"Unknown dataset: {fname}")
+SESSIONS = {}
 
 app = FastAPI(title="Demo")
 templates = Jinja2Templates(directory="templates")
@@ -39,79 +21,76 @@ async def index(request: Request):
 
 @app.post("/upload", response_class=HTMLResponse)
 async def uploadFiles(request: Request, files: List[UploadFile] = File(...)):
-    player_graphs = defaultdict(list)
+    session_id = uuid.uuid4().hex
+    try:
+        filedata = []
+        for file in files:
+            contents = await file.read()
+            if not file.filename: continue
 
-    dataset_frames = defaultdict(list)
-    dataset_labels = {}
+            suffix = Path(file.filename).suffix.lower()
+            if suffix in (".csv"):
+                df = pd.read_csv(BytesIO(contents))
+            else:
+                print(f"ERR: Unknown file type: {file.filename}")
+                continue
 
-    # read files and group them
-    for file in files:
-        contents = await file.read()
-        df = pd.read_csv(BytesIO(contents))
+            df.columns = df.columns.str.strip()
+            filedata.append((file.filename, df))
 
-        key, label = detectDataset(file.filename)
-        dataset_frames[key].append(df)
-        dataset_labels[key] = label
+        results = processFiles(filedata)
 
-    # process combined datasets
-    for key, dfs in dataset_frames.items():
-        df = pd.concat(dfs, ignore_index=True)
-        name = dataset_labels[key]
+        SESSIONS[session_id] = results
 
-    for key, dfs in dataset_frames.items():
-        df = pd.concat(dfs, ignore_index=True)
-        name = dataset_labels[key]
+        # Build the selector HTML that gets swapped into the page
+        player_names = sorted(results["players"].keys())
+        has_team = len(results["team"]) > 0
 
-        if key == "passes":
-            results = processTouchmaps(df)
-        # elif key == "defense":
-        #     results = processDefense(df)
-        # elif key == "pstats":
-        #     results = processPStats(df)
-        # elif key == "points":
-        #     results = processPoints(df)
-        # elif key == "possessions":
-        #     results = processPossessions(df)
-        # elif key == "stalls":
-        #     results = processStalls(df)
-
-        for player, figs in results.items():
-            for fig in figs:
-                player_graphs[player].append((name, fig))
-
-    # building the html
-    sections = []
-
-    for player, items in sorted(player_graphs.items()):
-        chart_blocks = []
-
-        for i, (dataset, fig) in enumerate(items):
-            chart_html = fig.to_html(
-                full_html=False,
-                include_plotlyjs=False,
-                config={"displayModeBar": True, "responsive": True},
-            )
-
-            chart_blocks.append(
-                f"""
-                <div class="chart-wrapper">
-                    {chart_html}
-                </div>
-                """
-            )
-
-        sections.append(
-            f"""
-            <section class="file-result success">
-                <div class="file-header">
-                    <span class="filename">{player}</span>
-                    <span class="badge ok">{len(items)} charts</span>
-                </div>
-                <div class="charts">
-                    {''.join(chart_blocks)}
-                </div>
-            </section>
-            """
+        player_buttons = "".join(
+            f'<button class="selector-btn player-btn" onclick="selectPlayer(this, \'{session_id}\', {repr(p)})">{p}</button>'
+            for p in player_names
         )
+        team_btn = (
+            f'<button class="selector-btn team-btn" onclick="selectPlayer(this, \'{session_id}\', \'__team__\')">Team Stats</button>'
+        ) if has_team else ""
 
-    return HTMLResponse("".join(sections))
+        return HTMLResponse(f"""
+            <div class="selector-panel">
+                {'<div class="selector-group">' + team_btn + '</div><div class="selector-divider">Players</div>' if has_team else '<div class="selector-divider" style="border-top:none;padding-top:0">Players</div>'}
+                <div class="selector-group">
+                    {player_buttons}
+                </div>
+            </div>
+            <div id="chart-area"></div>
+        """)
+
+    except Exception as exc:
+        tb = traceback.format_exc()
+        return HTMLResponse(f'<pre class="error-msg">{exc}\n\n{tb}</pre>')
+
+
+@app.get("/charts/{session_id}/{player}", response_class=HTMLResponse)
+async def getCharts(session_id: str, player: str):
+    session = SESSIONS.get(session_id)
+    if not session:
+        return HTMLResponse('<p class="error-msg">Session expired. Please re-upload your files.</p>')
+
+    items = session["team"] if player == "__team__" else session["players"].get(player, [])
+    title = "Team Stats" if player == "__team__" else player
+
+    if not items:
+        return HTMLResponse(f'<p class="error-msg">No charts found for {title}.</p>')
+
+    chart_blocks = "".join(f"""
+        <div class="chart-wrapper">
+            <div class="chart-header"></div>
+            {fig.to_html(full_html=False, include_plotlyjs=False)}
+        </div>
+    """ for _, fig in items)
+
+    return HTMLResponse(f"""
+        <div class="chart-area-header">
+            <span class="chart-area-title">{title}</span>
+        </div>
+        <div class="charts">{chart_blocks}</div>
+    """)

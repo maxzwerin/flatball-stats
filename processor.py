@@ -1,6 +1,42 @@
+import re
 from pathlib import Path
 from collections import defaultdict
+from typing import List, Dict
+
+import pandas as pd
 import plotly.graph_objects as go
+
+BACKGROUND = "#0d0f14"
+WHITE = "#ffffff"
+BLUE = "#6495ed"
+LIGHTBLUE = "#89cff0"
+GREEN = "#00ff40"
+RED = "#e23d28"
+PURPLE = "#df73ff"
+
+def detectDataset(fname: str) -> str | None:
+    name = Path(fname).stem.lower()
+    if "passes" in name:             return "passes"
+    if "defensive blocks" in name:   return "defense"
+    if "player stats" in name:       return "pstats"
+    if "points" in name:             return "points"
+    if "possessions" in name:        return "possessions"
+    if "stall outs against" in name: return "stalls"
+    return None
+
+def extractGame(fname: str) -> str:
+    match = re.search(r'vs\.\s+(.+?)\s+\d{4}-\d{2}-\d{2}', Path(fname).stem)
+    return match.group(1).strip() if match else "Unknown"
+
+def datasetLabel(key: str) -> str:
+    return {
+        "passes": "Touchmaps",
+        "defense": "Defensive Blocks",
+        "pstats": "Player Stats",
+        "points": "Points",
+        "possessions": "Possessions",
+        "stalls": "Stall Outs Against",
+    }.get(key, key)
 
 X_MIN, X_MAX = 0, 40
 Y_MIN, Y_MAX = 0, 110
@@ -15,10 +51,10 @@ def createFigureNormalized(title: str) -> go.Figure:
 
     fig.update_layout(
         title=title,
-        width=500,
-        height=700,
-        xaxis=dict(range=[-25, 25], showticklabels=True, showgrid=False),
-        yaxis=dict(range=[-20, 70], showticklabels=True, showgrid=False),
+        width=450,
+        height=600,
+        xaxis=dict(range=[-20, 20], showticklabels=False, showgrid=False, linecolor="black", zerolinecolor="black"),
+        yaxis=dict(range=[-20, 60], showticklabels=False, showgrid=False, linecolor="black", zerolinecolor="black"),
     )
 
     return fig
@@ -28,13 +64,16 @@ def createFigure(title: str) -> go.Figure:
 
     fig.update_layout(
         title=title,
-        width=500,
-        height=900,
-        xaxis=dict(range=[0, 40], showticklabels=False, showgrid=False),
-        yaxis=dict(range=[0, 110], showticklabels=False, showgrid=False),
+        width=450,
+        height=800,
+        plot_bgcolor = WHITE,
+        paper_bgcolor = WHITE,
+        xaxis=dict(range=[0, 40], showticklabels=False, showgrid=False, showline=False, zeroline=False),
+        yaxis=dict(range=[0, 110], showticklabels=False, showgrid=False, showline=False, zeroline=False),
         shapes=[
             dict(type="line", x0=0, x1=40, y0=20, y1=20, line=dict(width=3, color="black"), layer="below"),
             dict(type="line", x0=0, x1=40, y0=90, y1=90, line=dict(width=3, color="black"), layer="below"),
+            dict(type="rect", x0=0, x1=40, y0=0, y1=110, line=dict(width=4, color="black"), layer="below"),
         ]
     )
 
@@ -47,9 +86,6 @@ def createFigure(title: str) -> go.Figure:
     )
 
     return fig
-
-def processDefense(df):
-    return
 
 def processTouchmap(df, player_col, label, normalized=False):
     results = {}
@@ -66,17 +102,18 @@ def processTouchmap(df, player_col, label, normalized=False):
         drop_traces = []
         throwaway_traces = []
 
+        short_threshold = 10
+
+        if label == "Throws": c = ( RED, PURPLE, GREEN, LIGHTBLUE, BLUE )
+        else: c = ( PURPLE, RED, GREEN, LIGHTBLUE, BLUE )
+
         for _, row in group.iterrows():
-            if row['Thrower error?']:
-                # red is a throwaway, purple is a drop
-                line_color = 'red' if label == "Throws" else 'purple'
-            elif row['Receiver error?']:
-                # purple is a throwaway, red is a drop
-                line_color = 'purple' if label == "Throws" else 'red'
-            elif row['Assist?']:
-                line_color = 'green'
-            else:
-                line_color = 'blue'
+            dist = row['Distance (m)']
+            if row['Thrower error?']: line_color = c[0]
+            elif row['Receiver error?']: line_color = c[1]
+            elif row['Assist?']: line_color = c[2]
+            elif dist < short_threshold: line_color = c[3]
+            else: line_color = c[4]
 
             if normalized:
                 start_x = 0
@@ -94,18 +131,14 @@ def processTouchmap(df, player_col, label, normalized=False):
                 y=[start_y, end_y],
                 line=dict(width=2, color=line_color),
                 mode="lines+markers",
-                marker=dict(size=5, symbol="arrow-bar-up", angleref="previous"),
+                marker=dict(size=10, symbol="arrow-wide", angleref="previous"),
                 showlegend=False,
             )
 
-            if row['Thrower error?']:
-                throwaway_traces.append(trace)
-            elif row['Receiver error?']:
-                drop_traces.append(trace)
-            elif row['Assist?']:
-                assist_traces.append(trace)
-            else:
-                catch_traces.append(trace)
+            if row['Thrower error?']: throwaway_traces.append(trace)
+            elif row['Receiver error?']: drop_traces.append(trace)
+            elif row['Assist?']: assist_traces.append(trace)
+            else: catch_traces.append(trace)
 
         for trace in catch_traces + assist_traces + drop_traces + throwaway_traces:
             fig.add_trace(trace)
@@ -113,24 +146,6 @@ def processTouchmap(df, player_col, label, normalized=False):
         results[player] = [fig]
 
     return results
-
-def processPasses(df, normalized=False):
-    return processTouchmap(df, "Thrower", "Throws", normalized)
-
-def processReceptions(df, normalized=False):
-    return processTouchmap(df, "Receiver", "Receptions", normalized)
-
-def processPStats(df):
-    return
-
-def processPoints(df):
-    return
-
-def processPossessions(df):
-    return
-
-def processStalls(df):
-    return
 
 def processTouchmaps(df):
     """ return 4 graphs: passes, receptions + normalized variants """
@@ -151,20 +166,38 @@ def processTouchmaps(df):
 
     return combined
 
-def processFiles(df, fname):
-    name = Path(fname).stem.lower()
+def run(key: str, df: pd.DataFrame) -> Dict[str, List[go.Figure]]:
+    if key == "passes":      return processTouchmaps(df)
+    # if key == "defense":     return processDefense(df)
+    # if key == "pstats":      return processPStats(df)
+    # if key == "points":      return processPoints(df)
+    # if key == "possessions": return processPossessions(df)
+    # if key == "stalls":      return processStalls(df)
+    return {}
 
-    if "passes" in name:
-        return processTouchmaps(df), "Touchmaps"
-    # elif "defensive blocks" in name:
-    #     return processDefense(df), "Defensive Blocks"
-    # elif "player stats" in name:
-    #     return processPStats(df), "Player Stats"
-    # elif "points" in name:
-    #     return processPoints(df), "Points"
-    # elif "possessions" in name:
-    #     return processPossessions(df), "Possessions"
-    # elif "stall outs against" in name:
-    #     return processStalls(df), "Stall Outs Against"
-    else:
-        raise ValueError(f"Unknown dataset: {fname}")
+def processFiles(file_data: list) -> dict:
+    buckets = defaultdict(list)
+    for fname, df in file_data:
+        key = detectDataset(fname)
+        if key is None:
+            print(f"Skipping bad file: {fname}")
+            continue
+        df = df.copy()
+        df["_game"] = extractGame(fname)
+        buckets[key].append(df)
+
+    player_graphs: Dict[str, list] = defaultdict(list)
+    team_graphs: list = []
+
+    for key, dfs in buckets.items():
+        combined = pd.concat(dfs, ignore_index=True)
+        results = run(key, combined)
+        label = datasetLabel(key)
+        for player, figs in results.items():
+            for fig in figs:
+                if player == "__team__":
+                    team_graphs.append((label, fig))
+                else:
+                    player_graphs[player].append((label, fig))
+
+    return {"players": dict(player_graphs), "team": team_graphs}

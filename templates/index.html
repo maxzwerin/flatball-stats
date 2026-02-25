@@ -4,16 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Demo</title>
-
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --bg:       #0d0f14;
       --surface:  #161922;
@@ -30,72 +26,25 @@
       --radius:   0px;
       --shadow:   0 4px 32px rgba(0,0,0,.45);
     }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.6; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--sans);
-      min-height: 100vh;
-      line-height: 1.6;
-    }
-
-    header {
-      border-bottom: 1px solid var(--border);
-      padding: 1.4rem 2.5rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      background: var(--surface);
-    }
-
-    .logo { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--accent); }
-    .logo span { color: var(--accent2); }
-    .tagline { font-size: .8rem; color: var(--muted); margin-left: auto; font-family: var(--mono); }
-
-    main { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
 
     .upload-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 2rem 2.5rem;
-      margin-bottom: 2.5rem;
-      box-shadow: var(--shadow);
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 2rem 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow);
     }
-
-    .upload-card h2 {
-      font-size: 1rem; font-weight: 600; margin-bottom: 1.4rem;
-      display: flex; align-items: center; gap: .5rem;
+    .add-files-btn {
+      font-family: var(--mono); font-size: .8rem; font-weight: 700;
+      background: transparent; color: var(--accent);
+      border: 1px solid var(--accent); padding: .45rem 1rem;
+      cursor: pointer; position: relative; transition: background .15s;
+      display: inline-block;
     }
-    .upload-card h2::before {
-      content: ''; display: inline-block; width: 3px; height: 1rem;
-      background: var(--accent); border-radius: 2px;
-    }
-
-    .drop-zone {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 2.5rem;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-      position: relative;
-      background: var(--surface2);
-    }
-    .drop-zone:hover, .drop-zone.drag-over {
-      border-color: var(--accent);
-      background: rgba(79,142,247,.06);
-    }
-    .drop-zone input[type="file"] {
-      position: absolute; inset: 0; opacity: 0;
-      cursor: pointer; width: 100%; height: 100%;
-    }
-    .drop-icon { font-size: 2.2rem; margin-bottom: .6rem; }
-    .drop-label { font-size: .9rem; color: var(--muted); }
-    .drop-label strong { color: var(--accent); }
+    .add-files-btn:hover { background: rgba(79,142,247,.08); }
+    .add-files-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 
     #file-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-
     .file-chip {
       display: flex; align-items: center; gap: .4rem;
       background: var(--surface2); border: 1px solid var(--border);
@@ -105,185 +54,140 @@
     .file-chip .rm { cursor: pointer; color: var(--muted); font-size: 1rem; }
     .file-chip .rm:hover { color: var(--err); }
 
-    @keyframes pop {
-      from { transform: scale(.85); opacity: 0; }
-      to   { transform: scale(1);   opacity: 1; }
-    }
-
-    .form-footer {
-      display: flex; align-items: center;
-      justify-content: space-between;
-      margin-top: 1.4rem; gap: 1rem; flex-wrap: wrap;
-    }
-    .hint { font-size: .78rem; color: var(--muted); }
-
+    .form-footer { display: flex; justify-content: flex-end; margin-top: 1.4rem; }
     .submit-btn {
       font-family: var(--mono); font-size: .85rem; font-weight: 700;
       background: var(--accent); color: #fff; border: none;
-      border-radius: var(--radius); padding: .65rem 1.6rem;
-      cursor: pointer; letter-spacing: .03em;
+      padding: .65rem 1.6rem; cursor: pointer; letter-spacing: .03em;
       transition: background .15s, transform .1s;
       display: flex; align-items: center; gap: .5rem;
     }
-    .submit-btn:hover   { background: #3a7be0; }
-    .submit-btn:active  { transform: scale(.97); }
+    .submit-btn:hover { background: #3a7be0; }
     .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-    #progress {
-      display: none; align-items: center;
-      gap: .75rem; margin: 1rem 0;
-      font-size: .85rem; color: var(--muted);
-    }
-    #progress.active { display: flex; }
-
-    .spinner {
-      width: 18px; height: 18px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    #results-section h2 {
-      font-size: 1rem; font-weight: 600; margin-bottom: 1.2rem;
-      display: flex; align-items: center; gap: .5rem;
-    }
-    #results-section h2::before {
-      content: ''; display: inline-block; width: 3px; height: 1rem;
-      background: var(--accent2); border-radius: 2px;
+    .workspace {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 1.5rem;
+      align-items: start;
     }
 
-    .file-result {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); margin-bottom: 2rem;
-      overflow: hidden; box-shadow: var(--shadow);
-      animation: slideIn .25s ease;
+    .selector-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      position: sticky;
+      top: 1.5rem;
     }
-    @keyframes slideIn {
-      from { transform: translateY(10px); opacity: 0; }
-      to   { transform: translateY(0);    opacity: 1; }
-    }
-    .file-result.error { border-color: var(--err); }
 
-    .file-header {
+    .selector-group { display: flex; flex-direction: column; gap: .4rem; }
+
+    .selector-divider {
+      font-family: var(--mono); font-size: .68rem; font-weight: 700;
+      color: var(--muted); letter-spacing: .1em; text-transform: uppercase;
+      padding: .75rem 0 .4rem;
+      border-top: 1px solid var(--border);
+      margin-top: .5rem;
+    }
+
+    .selector-btn {
+      width: 100%; text-align: left;
+      font-family: var(--mono); font-size: .78rem;
+      background: transparent; color: var(--text);
+      border: 1px solid transparent;
+      padding: .45rem .7rem; cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .selector-btn:hover { background: var(--surface2); border-color: var(--border); }
+    .selector-btn.active { background: rgba(79,142,247,.12); border-color: var(--accent); color: var(--accent); }
+
+    .team-btn { color: var(--accent2); font-weight: 700; }
+    .team-btn:hover { border-color: var(--accent2) !important; }
+    .team-btn.active { background: rgba(247,136,79,.12) !important; border-color: var(--accent2) !important; color: var(--accent2) !important; }
+
+    #chart-area { min-height: 200px; }
+    .chart-area-header {
       display: flex; align-items: center; gap: .75rem;
-      padding: .9rem 1.4rem; border-bottom: 1px solid var(--border);
-      background: var(--surface2);
+      margin-bottom: 1rem;
+      padding-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
     }
-    .filename { font-family: var(--mono); font-size: .85rem; }
-    .badge {
-      margin-left: auto; font-family: var(--mono);
-      font-size: .7rem; font-weight: 700;
-      padding: .25rem .65rem; border-radius: 100px; letter-spacing: .05em;
-    }
-    .badge.ok  { background: rgba(62,207,116,.15); color: var(--ok); border: 1px solid rgba(62,207,116,.3); }
-    .badge.err { background: rgba(224,92,92,.15); color: var(--err); border: 1px solid rgba(224,92,92,.3); }
-
+    .chart-area-title { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--text); }
     .charts {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-      gap: 1rem;
-    }
-    .chart-wrapper {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      width: 100%;
     }
 
-    .chart-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: .55rem 1rem; background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-    }
-    .chart-label { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
-    .dl-btn {
-      font-family: var(--mono); font-size: .72rem; font-weight: 700;
-      color: var(--accent2); text-decoration: none;
-      padding: .25rem .7rem; border: 1px solid rgba(247,136,79,.3);
-      border-radius: 100px; transition: background .15s;
-    }
-    .dl-btn:hover { background: rgba(247,136,79,.1); }
+    .error-msg { padding: 1.2rem; font-family: var(--mono); font-size: .75rem; color: var(--err); white-space: pre-wrap; }
 
-    .error-msg {
-      padding: 1.2rem 1.4rem; font-family: var(--mono);
-      font-size: .75rem; color: var(--err);
-      white-space: pre-wrap; overflow-x: auto;
-    }
-
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body>
-
 <main>
-  <div class="upload-card">
-    <form id="upload-form"
-          hx-post="/upload"
-          hx-target="#results"
-          hx-swap="innerHTML"
-          hx-encoding="multipart/form-data"
-          hx-indicator="#progress">
-
-      <div class="drop-zone" id="drop-zone">
-        <div class="drop-icon">📂</div>
-        <p class="drop-label"><strong>Click to browse</strong> or drag &amp; drop files here</p>
-        <input type="file" name="files" id="file-input"
-               multiple accept=".csv,.xls,.xlsx,.json"
-               onchange="updateFileList(this.files)" />
-      </div>
-
-      <div id="file-list"></div>
-
-      <div class="form-footer">
-        <button type="submit" class="submit-btn" id="submit-btn" disabled>
-          Process Files
-        </button>
-      </div>
-    </form>
-  </div>
-
-  <div id="progress">
-    <div class="spinner"></div>
-    <span>Processing files…</span>
-  </div>
-
-  <div id="results-section" style="display:none;">
-    <div id="results"></div>
-  </div>
+    <div class="upload-card">
+      <form id="upload-form"
+            hx-post="/upload"
+            hx-target="#workspace"
+            hx-swap="innerHTML"
+            hx-encoding="multipart/form-data">
+        <label class="add-files-btn">
+          + Add Files
+          <input type="file" name="files" id="file-input"
+                 multiple accept=".csv"
+                 onchange="updateFileList(this.files)" />
+        </label>
+        <div id="file-list"></div>
+      </form>
+    </div>
+    <div class="workspace" id="workspace"></div>
 </main>
 
 <script>
+  let selectedSessionId = null;
+  let selectedPlayer = null;
+
+  function selectPlayer(btn, sessionId, player) {
+    selectedSessionId = sessionId;
+    selectedPlayer = player;
+    document.querySelectorAll('.selector-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadCharts();
+  }
+
+  function loadCharts() {
+    if (!selectedSessionId || !selectedPlayer) return;
+    const url = `/charts/${selectedSessionId}/${encodeURIComponent(selectedPlayer)}`;
+    htmx.ajax('GET', url, { target: '#chart-area', swap: 'innerHTML' });
+  }
+
   let selectedFiles = new DataTransfer();
 
-  function updateFileList(files) {
-    for (const f of files) {
-      let dup = false;
-      for (const e of selectedFiles.files) {
-        if (e.name === f.name && e.size === f.size) { dup = true; break; }
+    function updateFileList(files) {
+      for (const f of files) {
+        let dup = false;
+        for (const e of selectedFiles.files) {
+          if (e.name === f.name && e.size === f.size) { dup = true; break; }
+        }
+        if (!dup) selectedFiles.items.add(f);
       }
-      if (!dup) selectedFiles.items.add(f);
+      syncInput();
+      renderChips();
+      // auto-submit as soon as files are added
+      if (selectedFiles.files.length > 0) {
+        document.getElementById('upload-form').requestSubmit();
+      }
     }
-    syncInput();
-    renderChips();
-  }
 
   function removeFile(name) {
     const next = new DataTransfer();
-    for (const f of selectedFiles.files) {
-      if (f.name !== name) next.items.add(f);
-    }
+    for (const f of selectedFiles.files) { if (f.name !== name) next.items.add(f); }
     selectedFiles = next;
-    syncInput();
-    renderChips();
+    syncInput(); renderChips();
   }
 
   function syncInput() {
     document.getElementById('file-input').files = selectedFiles.files;
-    document.getElementById('submit-btn').disabled = selectedFiles.files.length === 0;
   }
 
   function renderChips() {
@@ -292,38 +196,19 @@
     for (const f of selectedFiles.files) {
       const chip = document.createElement('div');
       chip.className = 'file-chip';
-      chip.innerHTML = `
-        <span>📄</span>
-        <span>${f.name}</span>
-        <span class="rm" onclick="removeFile('${f.name}')" title="Remove">×</span>
-      `;
+      chip.innerHTML = `<span>📄</span><span>${f.name}</span><span class="rm" onclick="removeFile('${f.name}')" title="Remove">×</span>`;
       list.appendChild(chip);
     }
   }
 
-  const zone = document.getElementById('drop-zone');
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.classList.remove('drag-over');
-    updateFileList(e.dataTransfer.files);
-  });
-
-  document.body.addEventListener('htmx:afterSwap', e => {
-    if (e.detail.target.id === 'results') {
-      document.getElementById('results-section').style.display = 'block';
-      document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.body.addEventListener('htmx:beforeRequest', e => {
+    const trigger = e.detail.elt;
+    if (trigger && trigger.classList.contains('selector-btn')) {
+      document.querySelectorAll('.selector-btn').forEach(b => b.classList.remove('active'));
+      trigger.classList.add('active');
     }
   });
 
-  document.body.addEventListener('htmx:beforeRequest', () => {
-    document.getElementById('progress').classList.add('active');
-  });
-  document.body.addEventListener('htmx:afterRequest', () => {
-    document.getElementById('progress').classList.remove('active');
-  });
 </script>
-
 </body>
 </html>
