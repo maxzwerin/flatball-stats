@@ -1,0 +1,5 @@
+Created,Point,Player,In own endzone?,In opponent's endzone?,Stall out?,Callahan?,Location X (0 -> 1 = left sideline -> right sideline),Location Y (0 -> 1 = back of opponent endzone -> back of own endzone)
+2026-02-18 23:02:07,3,Levi,0,0,0,0,0.09861113,0.5478748
+2026-02-18 23:03:08,3,Levi,1,0,0,0,0.21111113,0.8612798
+2026-02-18 23:05:11,4,Levi,1,0,0,0,0.43472221,0.8108361
+2026-02-18 23:18:10,13,Sam,0,0,0,0,0.24722226,0.6071929

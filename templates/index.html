@@ -6,209 +6,188 @@
   <title>Demo</title>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --bg:       #0d0f14;
-      --surface:  #161922;
-      --surface2: #1e2230;
-      --border:   #2a2f42;
-      --accent:   #4f8ef7;
-      --accent2:  #f7884f;
-      --ok:       #3ecf74;
-      --err:      #e05c5c;
-      --text:     #dde2f0;
-      --muted:    #6b738f;
-      --mono:     'Space Mono', monospace;
-      --sans:     'DM Sans', sans-serif;
-      --radius:   0px;
-      --shadow:   0 4px 32px rgba(0,0,0,.45);
+      --bg:        #0b0d12;
+      --surface:   #13161f;
+      --surface2:  #1a1e2b;
+      --surface3:  #222636;
+      --border:    #252a3a;
+      --border2:   #2e3450;
+      --accent:    #4f8ef7;
+      --accent-lo: rgba(79,142,247,.10);
+      --accent2:   #f7884f;
+      --accent2-lo:rgba(247,136,79,.10);
+      --ok:        #3ecf74;
+      --warn:      #f5c542;
+      --err:       #e05c5c;
+      --text:      #dde2f0;
+      --text2:     #9aa3be;
+      --muted:     #555d7a;
+      --mono:      'Space Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+      --gutter:    1.5rem;
+      --shadow:    0 8px 48px rgba(0,0,0,.6);
     }
+
     body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.6; }
 
-    main { max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem var(--gutter); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: .95rem; font-weight: 700; color: var(--accent); letter-spacing: .05em; }
+    .logo span { color: var(--muted); font-weight: 400; }
+    .header-sub { font-family: var(--mono); font-size: .68rem; color: var(--muted); letter-spacing: .08em; }
 
-    .upload-card {
-      background: var(--surface); border: 1px solid var(--border);
-      padding: 2rem 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow);
-    }
-    .add-files-btn {
-      font-family: var(--mono); font-size: .8rem; font-weight: 700;
-      background: transparent; color: var(--accent);
-      border: 1px solid var(--accent); padding: .45rem 1rem;
-      cursor: pointer; position: relative; transition: background .15s;
-      display: inline-block;
-    }
-    .add-files-btn:hover { background: rgba(79,142,247,.08); }
-    .add-files-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-
-    #file-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-    .file-chip {
-      display: flex; align-items: center; gap: .4rem;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 100px; padding: .3rem .75rem;
-      font-size: .78rem; font-family: var(--mono);
-    }
-    .file-chip .rm { cursor: pointer; color: var(--muted); font-size: 1rem; }
-    .file-chip .rm:hover { color: var(--err); }
-
-    .form-footer { display: flex; justify-content: flex-end; margin-top: 1.4rem; }
-    .submit-btn {
-      font-family: var(--mono); font-size: .85rem; font-weight: 700;
-      background: var(--accent); color: #fff; border: none;
-      padding: .65rem 1.6rem; cursor: pointer; letter-spacing: .03em;
-      transition: background .15s, transform .1s;
-      display: flex; align-items: center; gap: .5rem;
-    }
-    .submit-btn:hover { background: #3a7be0; }
-    .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-    .workspace {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      gap: 1.5rem;
-      align-items: start;
-    }
-
-    .selector-panel {
+    .upload-strip {
       background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 1rem;
-      position: sticky;
-      top: 1.5rem;
-    }
-
-    .selector-group { display: flex; flex-direction: column; gap: .4rem; }
-
-    .selector-divider {
-      font-family: var(--mono); font-size: .68rem; font-weight: 700;
-      color: var(--muted); letter-spacing: .1em; text-transform: uppercase;
-      padding: .75rem 0 .4rem;
-      border-top: 1px solid var(--border);
-      margin-top: .5rem;
-    }
-
-    .selector-btn {
-      width: 100%; text-align: left;
-      font-family: var(--mono); font-size: .78rem;
-      background: transparent; color: var(--text);
-      border: 1px solid transparent;
-      padding: .45rem .7rem; cursor: pointer;
-      transition: background .15s, border-color .15s, color .15s;
-    }
-    .selector-btn:hover { background: var(--surface2); border-color: var(--border); }
-    .selector-btn.active { background: rgba(79,142,247,.12); border-color: var(--accent); color: var(--accent); }
-
-    .team-btn { color: var(--accent2); font-weight: 700; }
-    .team-btn:hover { border-color: var(--accent2) !important; }
-    .team-btn.active { background: rgba(247,136,79,.12) !important; border-color: var(--accent2) !important; color: var(--accent2) !important; }
-
-    #chart-area { min-height: 200px; }
-    .chart-area-header {
-      display: flex; align-items: center; gap: .75rem;
-      margin-bottom: 1rem;
-      padding-bottom: .75rem;
       border-bottom: 1px solid var(--border);
-    }
-    .chart-area-title { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--text); }
-    .charts {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      padding: .85rem var(--gutter);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
 
-    .error-msg { padding: 1.2rem; font-family: var(--mono); font-size: .75rem; color: var(--err); white-space: pre-wrap; }
+    .upload-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      background: transparent;
+      padding: .45rem 1.1rem;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .upload-btn:hover { background: var(--accent-lo); }
+    .upload-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 
-    ::-webkit-scrollbar { display: none; }
+    .upload-send-btn {
+      font-family: var(--mono);
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      padding: .45rem 1.3rem;
+      cursor: pointer;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    .upload-send-btn:hover { background: #3a7be0; }
+
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator { display: block; }
+
+    main { padding: var(--gutter); }
+    #workspace { display: contents; }
+
+    .warnings-block { background: rgba(245,197,66,.06); border: 1px solid rgba(245,197,66,.25); padding: 1rem 1.25rem; margin-bottom: var(--gutter); border-radius: 2px; }
+    .warn-title { font-family: var(--mono); font-size: .72rem; font-weight: 700; color: var(--warn); letter-spacing: .1em; margin-bottom: .5rem; }
+    .warn-list { list-style: none; display: flex; flex-direction: column; gap: .25rem; }
+    .warn-list li { font-family: var(--mono); font-size: .72rem; color: var(--warn); opacity: .8; }
+
+    .workspace { display: grid; grid-template-columns: 200px 1fr; gap: var(--gutter); align-items: start; }
+
+    .selector-panel { background: var(--surface); border: 1px solid var(--border); padding: .75rem; position: sticky; top: calc(56px + var(--gutter)); max-height: calc(100vh - 100px); overflow-y: auto; }
+    .selector-divider { border-top: 1px solid var(--border); margin-top: .4rem; }
+    .selector-label, .selector-divider { font-family: var(--mono); font-size: .63rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: .5rem .4rem .35rem; }
+    .selector-group { display: flex; flex-direction: column; gap: 2px; }
+
+    .selector-btn { width: 100%; text-align: left; font-family: var(--mono); font-size: .72rem; background: transparent; color: var(--text2); border: 1px solid transparent; padding: .38rem .6rem; cursor: pointer; border-radius: 2px; transition: background .12s, border-color .12s, color .12s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .selector-btn:hover  { background: var(--surface2); border-color: var(--border2); color: var(--text); }
+    .selector-btn.active { background: var(--accent-lo); border-color: var(--accent); color: var(--accent); }
+
+    .team-bar { display: flex; flex-wrap: wrap; gap: .4rem; padding: .6rem .7rem; background: var(--surface); border: 1px solid var(--border); margin-bottom: var(--gutter); }
+    .team-bar .selector-btn { width: auto; }
+
+    .team-btn { margin-bottom: 0.75rem; color: var(--accent2); border-color: var(--accent2) !important; }
+    .team-btn.active { background: var(--accent2-lo) !important; border-color: var(--accent2) !important; color: var(--accent2) !important; }
+    .team-btn:hover { border-color: var(--accent2) !important; }
+
+    .chart-section { min-height: 300px; }
+    #chart-area { min-height: 200px; position: relative; }
+
+    .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: var(--gutter); }
+    .chart-wrapper { background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+
+    .view-title { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--text); letter-spacing: .06em; margin-bottom: .9rem; }
+
+    .stats-bar { background: var(--surface); border: 1px solid var(--border); padding: 1rem 1.25rem; margin-bottom: var(--gutter); }
+    .stat-groups { display: flex; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; }
+    .stat-group { display: flex; flex-direction: column; gap: .4rem; }
+    .stat-group-label { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: .12em; color: var(--muted); }
+    .stat-cells { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .stat-cell { display: flex; flex-direction: column; align-items: center; min-width: 52px; }
+    .stat-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
+    .stat-label { font-family: var(--mono); font-size: .58rem; color: var(--muted); letter-spacing: .08em; margin-top: .15rem; }
+    .stat-divider { width: 1px; background: var(--border); align-self: stretch; margin: 0 .25rem; }
+
+    .hint-text { font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 3rem 0; text-align: center; }
+    .loading-pulse { font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 3rem 0; text-align: center; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+    .error-msg { font-family: var(--mono); font-size: .75rem; color: var(--err); padding: 1.5rem; white-space: pre-wrap; border: 1px solid rgba(224,92,92,.2); background: rgba(224,92,92,.04); }
+
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5rem 2rem; gap: 1rem; text-align: center; }
+    .empty-state-icon { font-size: 2.5rem; opacity: .25; }
+    .empty-state-title { font-family: var(--mono); font-size: .85rem; font-weight: 700; color: var(--text2); letter-spacing: .06em; }
+    .empty-state-sub { font-size: .82rem; color: var(--muted); max-width: 340px; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
   </style>
 </head>
 <body>
+
+<header class="page-header">
+  <div class="logo">PLACE<span>HOLDER</span></div>
+  <div class="header-sub">PLACEHOLDER2</div>
+</header>
+
+<form
+  class="upload-strip"
+  hx-post="/upload"
+  hx-target="#workspace"
+  hx-swap="innerHTML"
+  hx-encoding="multipart/form-data"
+  hx-indicator="#upload-indicator">
+
+  <label class="upload-btn">
+    UPLOAD FILES
+    <input type="file" name="files" multiple accept=".csv" />
+  </label>
+
+  <button type="submit" class="upload-send-btn">LOAD</button>
+
+  <span id="upload-indicator" class="htmx-indicator loading-pulse" style="padding:0">
+    Processing...
+  </span>
+
+</form>
+
 <main>
-    <div class="upload-card">
-      <form id="upload-form"
-            hx-post="/upload"
-            hx-target="#workspace"
-            hx-swap="innerHTML"
-            hx-encoding="multipart/form-data">
-        <label class="add-files-btn">
-          + Add Files
-          <input type="file" name="files" id="file-input"
-                 multiple accept=".csv"
-                 onchange="updateFileList(this.files)" />
-        </label>
-        <div id="file-list"></div>
-      </form>
+  <div id="workspace">
+    <div class="empty-state">
+      <div class="empty-state-icon">⬡</div>
+      <div class="empty-state-title">NO DATA LOADED</div>
+      <div class="empty-state-sub">Upload your CSV exports above.</div>
     </div>
-    <div class="workspace" id="workspace"></div>
+  </div>
 </main>
 
-<script>
-  let selectedSessionId = null;
-  let selectedPlayer = null;
-
-  function selectPlayer(btn, sessionId, player) {
-    selectedSessionId = sessionId;
-    selectedPlayer = player;
-    document.querySelectorAll('.selector-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    loadCharts();
-  }
-
-  function loadCharts() {
-    if (!selectedSessionId || !selectedPlayer) return;
-    const url = `/charts/${selectedSessionId}/${encodeURIComponent(selectedPlayer)}`;
-    htmx.ajax('GET', url, { target: '#chart-area', swap: 'innerHTML' });
-  }
-
-  let selectedFiles = new DataTransfer();
-
-    function updateFileList(files) {
-      for (const f of files) {
-        let dup = false;
-        for (const e of selectedFiles.files) {
-          if (e.name === f.name && e.size === f.size) { dup = true; break; }
-        }
-        if (!dup) selectedFiles.items.add(f);
-      }
-      syncInput();
-      renderChips();
-      // auto-submit as soon as files are added
-      if (selectedFiles.files.length > 0) {
-        document.getElementById('upload-form').requestSubmit();
-      }
-    }
-
-  function removeFile(name) {
-    const next = new DataTransfer();
-    for (const f of selectedFiles.files) { if (f.name !== name) next.items.add(f); }
-    selectedFiles = next;
-    syncInput(); renderChips();
-  }
-
-  function syncInput() {
-    document.getElementById('file-input').files = selectedFiles.files;
-  }
-
-  function renderChips() {
-    const list = document.getElementById('file-list');
-    list.innerHTML = '';
-    for (const f of selectedFiles.files) {
-      const chip = document.createElement('div');
-      chip.className = 'file-chip';
-      chip.innerHTML = `<span>📄</span><span>${f.name}</span><span class="rm" onclick="removeFile('${f.name}')" title="Remove">×</span>`;
-      list.appendChild(chip);
-    }
-  }
-
-  document.body.addEventListener('htmx:beforeRequest', e => {
-    const trigger = e.detail.elt;
-    if (trigger && trigger.classList.contains('selector-btn')) {
-      document.querySelectorAll('.selector-btn').forEach(b => b.classList.remove('active'));
-      trigger.classList.add('active');
-    }
-  });
-
-</script>
 </body>
 </html>
