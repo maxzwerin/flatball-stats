@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import numpy as np
 
 BACKGROUND = "#0d0f14"
 WHITE = "#ffffff"
@@ -69,6 +70,171 @@ def makeTrace(sx, sy, ex, ey, color, group):
         showlegend=False,
     )
 
+def genPlaytimeHeatmap(stats, possessions, game):
+    def parsepts(s):
+        """Parse '2,3,5,6,...' or '"2,3,5,6,..."' into a list of ints."""
+        return [int(x.strip()) for x in str(s).strip('"').split(",") if x.strip().isdigit()]
+
+    if game == "All":
+        all_games = sorted(stats["Game"].unique())
+        all_players = sorted(stats["Player"].unique())
+
+        # Build player -> {game -> points_played_total}
+        player_game = {p: {} for p in all_players}
+        for _, row in stats.iterrows():
+            player_game[row["Player"]][row["Game"]] = int(row["Points played total"])
+
+        matrix, text_matrix, totals = [], [], []
+        for p in all_players:
+            row, text_row = [], []
+            total = 0
+            for g in all_games:
+                val = player_game[p].get(g, 0)
+                total += val
+                row.append(val if val > 0 else None)
+                text_row.append(str(val) if val > 0 else "")
+            row.append(total)
+            text_row.append(str(total))
+            matrix.append(row)
+            text_matrix.append(text_row)
+            totals.append(total)
+
+        # Sort by total ascending
+        order = sorted(range(len(all_players)), key=lambda i: totals[i])
+        all_players = [all_players[i] for i in order]
+        matrix      = [matrix[i] for i in order]
+        text_matrix = [text_matrix[i] for i in order]
+        totals      = [totals[i] for i in order]
+
+        x_labels = list(all_games) + ["TOTAL"]
+
+        num_games = len(all_games)
+
+# Normalize each game column by its column max
+        norm_matrix = []
+        for row in matrix:
+            norm_matrix.append(list(row))  # copy
+
+        for col_i in range(num_games):
+            col_vals = [matrix[row_i][col_i] for row_i in range(len(all_players)) if matrix[row_i][col_i] is not None]
+            col_max = max(col_vals) if col_vals else 1
+            for row_i in range(len(all_players)):
+                val = norm_matrix[row_i][col_i]
+                if val is not None:
+                    norm_matrix[row_i][col_i] = val / col_max
+
+# Normalize TOTAL column separately
+        total_max = max(totals) if totals else 1
+        for row_i in range(len(all_players)):
+            norm_matrix[row_i][-1] = totals[row_i] / total_max
+
+        fig = go.Figure(go.Heatmap(
+            z=norm_matrix,          # normalized for color
+            x=x_labels,
+            y=all_players,
+            text=text_matrix,       # raw numbers shown
+            texttemplate="%{text}",
+            colorscale="Inferno",
+            showscale=False,
+            zmin=0,
+            zmax=1,
+        ))
+        fig.add_shape(
+            type="line",
+            xref="x", yref="paper",
+            x0=len(all_games) - 0.5,
+            x1=len(all_games) - 0.5,
+            y0=0, y1=1,
+            line=dict(color="#13161f", width=3),
+        )
+        fig.update_layout(
+            xaxis=dict(showgrid=False, ticks="outside", ticklen=5, tickcolor="#555d7a"),
+            yaxis=dict(showgrid=False, ticks="outside", ticklen=5, tickcolor="#555d7a"),
+            height=max(300, len(all_players) * 28 + 100),
+        )
+
+    else:
+        stats = stats[stats["Game"] == game]
+        poss = possessions[possessions["Game"] == game]
+
+        our_score = 0
+        their_score = 0
+
+        x_labels = []
+        for _, row in poss.iterrows():
+            offense = bool(row["Started point on offense?"])
+            scored = bool(row["Scored?"])
+            is_break = (not offense and scored) or (offense and not scored)
+            if scored: our_score += 1
+            else: their_score += 1
+            prefix = "O" if offense else "D"
+            label = f"{prefix}: {our_score} - {their_score}"
+            if is_break: label += " BREAK"
+            x_labels.append(label)
+
+        all_points = set()
+        player_points = {}
+        for _, row in stats.iterrows():
+            pts = parsepts(row["Points played"])
+            player_points[row["Player"]] = pts
+            all_points.update(pts)
+
+        all_points = sorted(all_points)
+        players_sorted = sorted(player_points.keys(), key=lambda p: len(player_points[p]))
+
+        matrix = []
+        text_matrix = []
+        totals = []
+
+        for p in players_sorted:
+            played = set(player_points[p])
+            row = []
+            text_row = []
+            count = 0
+            for pt in all_points:
+                if pt in played:
+                    count += 1
+                    row.append(count)
+                    text_row.append(str(count))
+                else:
+                    row.append(None)
+                    text_row.append("")
+
+            total = count
+            row.append(total)
+            text_row.append(str(total))
+            matrix.append(row)
+            text_matrix.append(text_row)
+            totals.append(total)
+
+        x_labels = x_labels[:len(all_points)] # need to trim
+        x_labels += ["TOTAL"]
+
+        fig = go.Figure(go.Heatmap(
+            z=matrix,
+            x=x_labels,
+            y=players_sorted,
+            text=text_matrix,
+            texttemplate="%{text}",
+            colorscale="Inferno",
+            showscale=False,
+            zmin=0,
+            zmax=max(totals) if totals else 1,
+        ))
+        fig.add_shape(
+            type="line",
+            xref="x", yref="paper",
+            x0=len(all_points) - 0.5,
+            x1=len(all_points) - 0.5,
+            y0=0, y1=1,
+            line=dict(color="#13161f", width=3),
+        )
+
+        fig.update_layout(
+            xaxis=dict(showgrid=False), yaxis=dict(showgrid=False),
+            height=max(300, len(stats["Player"].unique()) * 28 + 100),
+        )
+    return fig
 
 def genPasses(data):
     fig = createFigure("Passes")
@@ -155,30 +321,37 @@ def buildTitle(game, player):
         return f"{player} vs. {game}" if game != "All" else player
 
 def getCharts(data, game, player):
-    passes = data.get("Passes")
+    figs = []
 
-    if passes is None or passes.empty:
-        print("No pass data available")
-        return []
+    blocks = data.get("Defensive Blocks")
+    passes = data.get("Passes")
+    stats = data.get("Player Stats")
+    points = data.get("Points")
+    possessions = data.get("Possessions")
+    stalls = data.get("Stall Outs Against")
+
 
     if game != "All": 
         passes = passes[passes["Game"] == game]
         
-    if player != "Team": 
+    if player == "Touchmaps": 
+        figs.append(genPasses(passes))
+        figs.append(genReceptions(passes))
+        # TODO:
+        # midfield hucks, sideline hucks, sideline short passes,
+        # redzone passes, other passes, + normalized variations
+    elif player == "Play Time": 
+        figs.append(genPlaytimeHeatmap(stats, possessions ,game))
+        return buildTitle(game, player), None, figs
+    elif player == "Efficiency":
+        return buildTitle(game, player), None, figs
+    elif player == "Distribution":
+        return buildTitle(game, player), None, figs
+    else:
         throws = passes[passes["Thrower"] == player]
         receps = passes[passes["Receiver"] == player]
 
-    if passes.empty:
-        print(f"No data available for game={game!r} player={player!r}")
-        return []
-
-    figs = []
-
-    if player != "Team": 
         figs.append(genPasses(throws))
         figs.append(genReceptions(receps))
-    else:
-        figs.append(genPasses(passes))
-        figs.append(genReceptions(passes))
 
     return buildTitle(game, player), getStats(data, game, player), figs

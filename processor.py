@@ -42,7 +42,6 @@ def parseFname(filename: str):
     return canonical, opponent, timestamp
 
 def processUploads(file_list: list[tuple[str, bytes]]):
-
     combined: dict[str, list[pd.DataFrame]] = {
         t: [] for t in EXPECTED_FILE_TYPES
     }
@@ -73,9 +72,7 @@ def processUploads(file_list: list[tuple[str, bytes]]):
     for game, present in sorted(games_seen.items()):
         missing = [t for t in EXPECTED_FILE_TYPES if t not in present]
         if missing:
-            warnings.append(
-                f"Game vs. {game} MISSING: {', '.join(missing)}"
-            )
+            warnings.append(f"Game vs. {game} MISSING: {', '.join(missing)}")
 
     data: dict[str, pd.DataFrame] = {}
 
@@ -98,48 +95,35 @@ def getGameList(data: dict):
 
 
 def getPlayerList(data: dict):
-
-    if "Player Stats" not in data:
-        return []
-
+    if "Player Stats" not in data: return []
     df = data["Player Stats"]
 
-    if "Player" not in df.columns:
-        return []
-
+    if "Player" not in df.columns: return []
     players = df["Player"].dropna().astype(str).unique()
 
     return sorted(players)
 
-def getPlayerStats(data: dict, game: str = "All", player: str = "Team"):
+def getPlayerStats(data, game: str = "All", player: str = "Team"):
 
     df = data.get("Player Stats", pd.DataFrame()).copy()
-    if df.empty:
-        return df
+    if df.empty: return df
 
-    if game != "All":
-        df = df[df["Game"].astype(str) == game]
-
-    if player != "Team":
-        df = df[df["Player"].astype(str) == player]
+    if game != "All": df = df[df["Game"].astype(str) == game]
+    if player != "Team": df = df[df["Player"].astype(str) == player]
 
     return df.reset_index(drop=True)
 
-def getFileData(data: dict, file_type: str,
-                game: str = "All",
-                player: str = "Team"):
+def getFileData(data, file_type, game: str = "All", player: str = "Team"):
 
     df = data.get(file_type, pd.DataFrame()).copy()
     if df.empty:
         return df
 
     # filter by game
-    if game != "All":
-        df = df[df["Game"].astype(str) == game]
+    if game != "All": df = df[df["Game"].astype(str) == game]
 
     # filter by player
     if player != "Team":
-
         if file_type == "Passes":
 
             t = df["Thrower"].astype(str) if "Thrower" in df else ""
@@ -155,8 +139,7 @@ def getFileData(data: dict, file_type: str,
 
     return df.reset_index(drop=True)
 
-
-def dataEndpoints(file_type: str, game: str, player: str):
+def dataEndpoints(file_type, game, player):
     return (
         f"/api/data/{url_quote(file_type)}"
         f"?game={url_quote(game)}&player={url_quote(player)}"
@@ -164,7 +147,6 @@ def dataEndpoints(file_type: str, game: str, player: str):
 
 
 def listAllColumns(data: dict):
-
     return {
         file_type: sorted(df.columns.astype(str))
         for file_type, df in data.items()
