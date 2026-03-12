@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import numpy as np
+import pandas as pd
 
 BACKGROUND = "#0d0f14"
 WHITE = "#ffffff"
@@ -70,171 +71,101 @@ def makeTrace(sx, sy, ex, ey, color, group):
         showlegend=False,
     )
 
+def heatmapFig(x, y, z, txt):
+    fig = go.Figure(go.Heatmap(
+        z=z,
+        x=x,
+        y=y,
+        text=txt,
+        texttemplate="%{text}",
+        colorscale="Inferno",
+        showscale=False,
+    ))
+    fig.add_shape(
+        type="line",
+        xref="x", yref="paper",
+        x0=len(x) - 1.5,
+        x1=len(x) - 1.5,
+        y0=0, y1=1,
+        line=dict(color="#13161f", width=3),
+    )
+
+    fig.update_layout(
+        xaxis=dict(showgrid=False), yaxis=dict(showgrid=False),
+        height=max(300, len(y) * 28 + 100),
+    )
+
+    return fig
+
 def genPlaytimeHeatmap(stats, possessions, game):
     def parsepts(s):
-        """Parse '2,3,5,6,...' or '"2,3,5,6,..."' into a list of ints."""
-        return [int(x.strip()) for x in str(s).strip('"').split(",") if x.strip().isdigit()]
+        if not s or str(s).strip() == "": return []
+        return [int(x) for x in str(s).strip('"').split(",") if x.strip()]
+
+    all_games = sorted(stats["Game"].unique())
+    all_players = sorted(stats["Player"].unique())
+    
+    stats = stats if game == "All" else stats[stats["Game"] == game]
+    poss = possessions if game == "All" else possessions[possessions["Game"] == game]
+
+    all_points = set()
+    player_points = {}
+    for _, row in stats.iterrows():
+        pts = parsepts(row["Points played"])
+        player_points[row["Player"]] = pts
+        all_points.update(pts)
+
+    player_total = { p: {} for p in all_players }
+    for _, row in stats.iterrows():
+        player_total[row["Player"]][row["Game"]] = int(row["Points played total"])
+    
+    game_total = { p: dict(games) for p, games in player_total.items() }
+    player_total = { p: sum(games.values()) for p, games in player_total.items() }
+
+    all_points = sorted(all_points)
+    x_labels = [str(pt) for pt in all_points] + ["Total"]
+
+    sorted_players = sorted(all_players, key=lambda p: player_total.get(p, 0))
+
+    matrix = []
+    text_matrix = []
+    for p in sorted_players:
+        played = set(player_points.get(p, []))
+        row = []
+        text_row = []
+        count = 0
+        for pt in all_points:
+            if pt in played:
+                count += 1
+                row.append(count)
+                text_row.append(str(count))
+            else:
+                row.append(None)
+                text_row.append("")
+
+        total = player_total.get(p, 0)
+        row.append(total)
+        text_row.append(str(total))
+
+        matrix.append(row)
+        text_matrix.append(text_row)
 
     if game == "All":
-        all_games = sorted(stats["Game"].unique())
-        all_players = sorted(stats["Player"].unique())
-
-        # Build player -> {game -> points_played_total}
-        player_game = {p: {} for p in all_players}
-        for _, row in stats.iterrows():
-            player_game[row["Player"]][row["Game"]] = int(row["Points played total"])
-
-        matrix, text_matrix, totals = [], [], []
-        for p in all_players:
-            row, text_row = [], []
-            total = 0
-            for g in all_games:
-                val = player_game[p].get(g, 0)
-                total += val
-                row.append(val if val > 0 else None)
-                text_row.append(str(val) if val > 0 else "")
+        game_names = sorted(all_games)
+        x_labels_all = game_names + ["Total"]
+        all_matrix = []
+        all_text_matrix = []
+        for p in sorted_players:
+            row = [game_total.get(p, {}).get(g, 0) for g in game_names]
+            text_row = [str(v) if v else "" for v in row]
+            total = player_total.get(p, 0)
             row.append(total)
             text_row.append(str(total))
-            matrix.append(row)
-            text_matrix.append(text_row)
-            totals.append(total)
+            all_matrix.append(row)
+            all_text_matrix.append(text_row)
+        return heatmapFig(x_labels_all, sorted_players, all_matrix, all_text_matrix)
 
-        # Sort by total ascending
-        order = sorted(range(len(all_players)), key=lambda i: totals[i])
-        all_players = [all_players[i] for i in order]
-        matrix      = [matrix[i] for i in order]
-        text_matrix = [text_matrix[i] for i in order]
-        totals      = [totals[i] for i in order]
-
-        x_labels = list(all_games) + ["TOTAL"]
-
-        num_games = len(all_games)
-
-# Normalize each game column by its column max
-        norm_matrix = []
-        for row in matrix:
-            norm_matrix.append(list(row))  # copy
-
-        for col_i in range(num_games):
-            col_vals = [matrix[row_i][col_i] for row_i in range(len(all_players)) if matrix[row_i][col_i] is not None]
-            col_max = max(col_vals) if col_vals else 1
-            for row_i in range(len(all_players)):
-                val = norm_matrix[row_i][col_i]
-                if val is not None:
-                    norm_matrix[row_i][col_i] = val / col_max
-
-# Normalize TOTAL column separately
-        total_max = max(totals) if totals else 1
-        for row_i in range(len(all_players)):
-            norm_matrix[row_i][-1] = totals[row_i] / total_max
-
-        fig = go.Figure(go.Heatmap(
-            z=norm_matrix,          # normalized for color
-            x=x_labels,
-            y=all_players,
-            text=text_matrix,       # raw numbers shown
-            texttemplate="%{text}",
-            colorscale="Inferno",
-            showscale=False,
-            zmin=0,
-            zmax=1,
-        ))
-        fig.add_shape(
-            type="line",
-            xref="x", yref="paper",
-            x0=len(all_games) - 0.5,
-            x1=len(all_games) - 0.5,
-            y0=0, y1=1,
-            line=dict(color="#13161f", width=3),
-        )
-        fig.update_layout(
-            xaxis=dict(showgrid=False, ticks="outside", ticklen=5, tickcolor="#555d7a"),
-            yaxis=dict(showgrid=False, ticks="outside", ticklen=5, tickcolor="#555d7a"),
-            height=max(300, len(all_players) * 28 + 100),
-        )
-
-    else:
-        stats = stats[stats["Game"] == game]
-        poss = possessions[possessions["Game"] == game]
-
-        our_score = 0
-        their_score = 0
-
-        x_labels = []
-        for _, row in poss.iterrows():
-            offense = bool(row["Started point on offense?"])
-            scored = bool(row["Scored?"])
-            is_break = (not offense and scored) or (offense and not scored)
-            if scored: our_score += 1
-            else: their_score += 1
-            prefix = "O" if offense else "D"
-            label = f"{prefix}: {our_score} - {their_score}"
-            if is_break: label += " BREAK"
-            x_labels.append(label)
-
-        all_points = set()
-        player_points = {}
-        for _, row in stats.iterrows():
-            pts = parsepts(row["Points played"])
-            player_points[row["Player"]] = pts
-            all_points.update(pts)
-
-        all_points = sorted(all_points)
-        players_sorted = sorted(player_points.keys(), key=lambda p: len(player_points[p]))
-
-        matrix = []
-        text_matrix = []
-        totals = []
-
-        for p in players_sorted:
-            played = set(player_points[p])
-            row = []
-            text_row = []
-            count = 0
-            for pt in all_points:
-                if pt in played:
-                    count += 1
-                    row.append(count)
-                    text_row.append(str(count))
-                else:
-                    row.append(None)
-                    text_row.append("")
-
-            total = count
-            row.append(total)
-            text_row.append(str(total))
-            matrix.append(row)
-            text_matrix.append(text_row)
-            totals.append(total)
-
-        x_labels = x_labels[:len(all_points)] # need to trim
-        x_labels += ["TOTAL"]
-
-        fig = go.Figure(go.Heatmap(
-            z=matrix,
-            x=x_labels,
-            y=players_sorted,
-            text=text_matrix,
-            texttemplate="%{text}",
-            colorscale="Inferno",
-            showscale=False,
-            zmin=0,
-            zmax=max(totals) if totals else 1,
-        ))
-        fig.add_shape(
-            type="line",
-            xref="x", yref="paper",
-            x0=len(all_points) - 0.5,
-            x1=len(all_points) - 0.5,
-            y0=0, y1=1,
-            line=dict(color="#13161f", width=3),
-        )
-
-        fig.update_layout(
-            xaxis=dict(showgrid=False), yaxis=dict(showgrid=False),
-            height=max(300, len(stats["Player"].unique()) * 28 + 100),
-        )
-    return fig
+    return heatmapFig(x_labels, sorted_players, matrix, text_matrix)
 
 def genPasses(data):
     fig = createFigure("Passes")
@@ -300,19 +231,122 @@ def genReceptions(data):
     return fig
 
 def getStats(data, game, player):
-    return {
-        "throws":       900,
-        "completions":  170,
-        "throwaways":   10,
-        "comp_pct":     90,
-        "throw_yards":  250,
-        "assists":      12,
-        "receptions":   180,
-        "drops":        0,
-        "catch_pct":    100,
-        "recep_yards":  400,
-        "goals":        19,
-    }
+    passes   = data.get("Passes")
+    stats_df = data.get("Player Stats")
+    possessions = data.get("Possessions")
+
+    if game != "All":
+        passes      = passes[passes["Game"] == game]
+        stats_df    = stats_df[stats_df["Game"] == game]
+        possessions = possessions[possessions["Game"] == game]
+
+    if player == "Touchmaps":
+        total_poss    = len(possessions)
+        scored_poss   = int(possessions["Scored?"].sum())
+        completed     = int((passes["Turnover?"] == 0).sum())
+        throwaways    = int(passes["Thrower error?"].sum())
+        drops         = int(passes["Receiver error?"].sum())
+        turnovers     = throwaways + drops
+        comp_pct      = round(completed / (completed + throwaways) * 100) if (completed + throwaways) else 0
+        catch_pct     = round(completed / (completed + drops) * 100)      if (completed + drops)      else 0
+        conv_pct      = round(scored_poss / total_poss * 100)             if total_poss               else 0
+        turnover_rate = round(turnovers / total_poss, 2)                  if total_poss               else 0
+
+        return [
+            {"header": "BIG PICTURE"},
+            {"label": "POSSESSION CONV %", "value": f"{conv_pct}%",      "color": "good"},
+            {"label": "TURNOVER RATE",     "value": turnover_rate,        "color": "bad"},
+            {"header": "OFFENSE"},
+            {"label": "COMP %",        "value": f"{comp_pct}%", "color": "good"},
+            {"label": "COMPLETIONS",   "value": completed,      "color": "good"},
+            {"label": "THROWAWAYS",    "value": throwaways,     "color": "bad"},
+            {"label": "CATCH %",       "value": f"{catch_pct}%","color": "good"},
+            {"label": "CATCHES",       "value": completed,      "color": "good"},
+            {"label": "DROPS",         "value": drops,          "color": "bad"},
+        ]
+
+    p = stats_df[stats_df["Player"] == player]
+
+    def col(name):
+        return 0 if p.empty else int(p[name].sum())
+
+    def fcol(name):
+        return 0.0 if p.empty else float(p[name].sum())
+
+    # raw counting stats
+    throws      = col("Throws")
+    completions = throws - col("Thrower errors")
+    throwaways  = col("Thrower errors")
+    catches     = col("Catches")
+    drops       = col("Receiver errors")
+    goals       = col("Goals")
+    assists     = col("Assists")
+    sec_assists = col("Secondary assists")
+    turnovers   = col("Turnovers")
+    blocks      = col("Defensive blocks")
+    o_pts       = col("Offense points played")
+    d_pts       = col("Defense points played")
+    o_won       = col("Offense points won")
+    d_won       = col("Defense points won")
+    touches     = col("Touches")
+    pts_played  = col("Points played total")
+    pts_touched = col("Points played with touches")
+    dist_thrown = col("Total completed throw distance (m)")
+    dist_caught = col("Total caught pass distance (m)")
+
+    # derived stats
+    comp_pct      = round(completions / throws * 100)          if throws                    else 0
+    catch_pct     = round(catches / (catches + drops) * 100)   if (catches + drops)         else 0
+    o_win_pct     = round(o_won / o_pts * 100)                 if o_pts                     else 0
+    d_win_pct     = round(d_won / d_pts * 100)                 if d_pts                     else 0
+    plus_minus    = (goals + assists + blocks) - turnovers + (sec_assists / 2)
+    yards_per_throw = round(dist_thrown / completions)         if completions               else 0
+    involvement   = round(pts_touched / pts_played * 100)      if pts_played                else 0
+
+    player_passes = passes[passes["Thrower"] == player]
+    total_throws  = len(player_passes)
+    huck_pct      = round(player_passes["Huck?"].sum()  / total_throws * 100) if total_throws else 0
+    dump_pct      = round(player_passes["Dump?"].sum()  / total_throws * 100) if total_throws else 0
+    swing_pct     = round(player_passes["Swing?"].sum() / total_throws * 100) if total_throws else 0
+    rz_assists    = int(player_passes[
+        (player_passes["Assist?"] == 1) & (player_passes["Throw to endzone?"] == 1)
+    ].shape[0])
+
+    return [
+        {"header": "BIG PICTURE"},
+        {"label": "+/-",          "value": f"{'+' if plus_minus >= 0 else ''}{plus_minus}", "color": "good" if plus_minus >= 0 else "bad"},
+        {"label": "INVOLVEMENT",  "value": f"{involvement}%", "color": "neutral"},
+        {"label": "O-WIN %",      "value": f"{o_win_pct}%",   "color": "good" if o_win_pct >= 50 else "bad"},
+        {"label": "D-WIN %",      "value": f"{d_win_pct}%",   "color": "good" if d_win_pct >= 50 else "bad"},
+
+        {"header": "THROWING"},
+        {"label": "COMP %",         "value": f"{comp_pct}%",    "color": "good" if comp_pct >= 80 else "bad"},
+        {"label": "COMPLETIONS",    "value": completions,        "color": "good"},
+        {"label": "THROWAWAYS",     "value": throwaways,         "color": "bad"},
+        {"label": "ASSISTS",        "value": assists,            "color": "good"},
+        {"label": "SEC. ASSISTS",   "value": sec_assists,        "color": "good"},
+        {"label": "RZ ASSISTS",     "value": rz_assists,         "color": "good"},
+        {"label": "YDS/THROW",      "value": f"{yards_per_throw}m", "color": "neutral"},
+        {"label": "DIST. THROWN",   "value": f"{dist_thrown}m", "color": "neutral"},
+
+        {"header": "THROWING STYLE"},
+        {"label": "HUCK %",  "value": f"{huck_pct}%",  "color": "neutral"},
+        {"label": "DUMP %",  "value": f"{dump_pct}%",  "color": "neutral"},
+        {"label": "SWING %", "value": f"{swing_pct}%", "color": "neutral"},
+
+        {"header": "RECEIVING"},
+        {"label": "CATCH %",     "value": f"{catch_pct}%", "color": "good" if catch_pct >= 90 else "bad"},
+        {"label": "CATCHES",     "value": catches,          "color": "good"},
+        {"label": "DROPS",       "value": drops,            "color": "bad"},
+        {"label": "GOALS",       "value": goals,            "color": "good"},
+        {"label": "DIST. CAUGHT","value": f"{dist_caught}m","color": "neutral"},
+
+        {"header": "DEFENSE & MISC"},
+        {"label": "D-BLOCKS",    "value": blocks,    "color": "good"},
+        {"label": "TURNOVERS",   "value": turnovers, "color": "bad"},
+        {"label": "O-PTS PLAYED","value": o_pts,     "color": "neutral"},
+        {"label": "D-PTS PLAYED","value": d_pts,     "color": "neutral"},
+    ]
 
 def buildTitle(game, player):
     if player == "Team":

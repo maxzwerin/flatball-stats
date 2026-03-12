@@ -126,14 +126,15 @@
     .view-title { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--text); letter-spacing: .06em; margin-bottom: .9rem; }
 
     .stats-bar { background: var(--surface); border: 1px solid var(--border); padding: 1rem 1.25rem; margin-bottom: var(--gutter); }
-    .stat-groups { display: flex; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; }
-    .stat-group { display: flex; flex-direction: column; gap: .4rem; }
-    .stat-group-label { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: .12em; color: var(--muted); }
-    .stat-cells { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .stat-cell { display: flex; flex-direction: column; align-items: center; min-width: 52px; }
-    .stat-value { font-family: var(--mono); font-size: 1.15rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
-    .stat-label { font-family: var(--mono); font-size: .58rem; color: var(--muted); letter-spacing: .08em; margin-top: .15rem; }
-    .stat-divider { width: 1px; background: var(--border); align-self: stretch; margin: 0 .25rem; }
+    .stat-columns { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: .6rem; }
+    .stat-col { display: flex; flex-direction: column; gap: .3rem; min-width: 160px; }
+    .stat-row { display: flex; justify-content: space-between; gap: 1rem; }
+    .stat-label { font-family: var(--mono); font-size: .82rem; color: var(--muted); letter-spacing: .05em; }
+    .stat-value { font-family: var(--mono); font-size: .82rem; font-weight: 700; }
+    .stat-value.stat-good    { color: var(--ok); }
+    .stat-value.stat-bad     { color: var(--err); }
+    .stat-value.stat-neutral { color: var(--text); }
+    .stat-col-header { font-family: var(--mono); font-size: .62rem; font-weight: 700; letter-spacing: .12em; color: var(--muted); margin-bottom: .3rem; }
 
     .hint-text { font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 3rem 0; text-align: center; }
     .loading-pulse { font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 3rem 0; text-align: center; animation: pulse 1.4s ease-in-out infinite; }

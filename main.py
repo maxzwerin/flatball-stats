@@ -16,7 +16,7 @@ SESSIONS: dict[str, dict] = {}
 
 TEAM_VIEWS = ["Touchmaps", "Play Time", "Efficiency", "Distribution"]
 
-def render_plotly(fig):
+def renderPlotly(fig):
     return pio.to_html(
         fig,
         full_html=False,
@@ -24,43 +24,44 @@ def render_plotly(fig):
         config={"responsive": True, "displayModeBar": False},
     )
 
-def render_stats(title, stats):
+def renderStats(title, stats):
     if not stats:
         return f'<h2 class="view-title">{title}</h2>'
 
-    def stat(label, value):
-        return f"""
-        <div class="stat-cell">
-            <div class="stat-value">{value}</div>
-            <div class="stat-label">{label}</div>
+    groups = []  # list of (header_name, [items])
+    current_header = None
+    current_items = []
+    for item in stats:
+        if "header" in item:
+            if current_header is not None:
+                groups.append((current_header, current_items))
+            current_header = item["header"]
+            current_items = []
+        else:
+            current_items.append(item)
+    if current_header is not None:
+        groups.append((current_header, current_items))
+
+    cols_html = ""
+    for header, items in groups:
+        rows = ""
+        for item in items:
+            color = item.get("color", "neutral")
+            rows += f"""
+            <div class="stat-row">
+                <span class="stat-label">{item["label"]}</span>
+                <span class="stat-value stat-{color}">{item["value"]}</span>
+            </div>"""
+        cols_html += f"""
+        <div class="stat-col">
+            <div class="stat-col-header">{header}</div>
+            {rows}
         </div>"""
 
     return f"""
     <div class="stats-bar">
         <h2 class="view-title">{title}</h2>
-        <div class="stat-groups">
-            <div class="stat-group">
-                <div class="stat-group-label">THROWING</div>
-                <div class="stat-cells">
-                    {stat("COMP %",      f'{stats["comp_pct"]}%')}
-                    {stat("COMPLETIONS", stats["completions"])}
-                    {stat("THROWAWAYS",  stats["throwaways"])}
-                    {stat("ASSISTS",     stats["assists"])}
-                    {stat("YARDS",       stats["throw_yards"])}
-                </div>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-group">
-                <div class="stat-group-label">RECEIVING</div>
-                <div class="stat-cells">
-                    {stat("CATCH %",    f'{stats["catch_pct"]}%')}
-                    {stat("RECEPTIONS", stats["receptions"])}
-                    {stat("DROPS",      stats["drops"])}
-                    {stat("GOALS",      stats["goals"])}
-                    {stat("YARDS",      stats["recep_yards"])}
-                </div>
-            </div>
-        </div>
+        <div class="stat-columns">{cols_html}</div>
     </div>
     """
 
@@ -81,7 +82,7 @@ async def upload(files: list[UploadFile] = File(...)):
     players = processor.getPlayerList(data)
 
     return HTMLResponse(
-        sidebar_html(
+        sidebarHtml(
             session_id=session_id,
             games=games,
             players=players,
@@ -106,22 +107,22 @@ async def charts_view(session_id: str, game: str = "All", player: str = "Touchma
     except Exception as exc:
         charts_html = f'<p class="error-msg">Chart error: {exc}</p>'
     else:
-        stats_html = render_stats(title, stats)
+        stats_html = renderStats(title, stats)
         if figs:
             divs = "\n".join(
-                f'<div class="chart-wrapper">{render_plotly(f)}</div>'
+                f'<div class="chart-wrapper">{renderPlotly(f)}</div>'
                 for f in figs
             )
             charts_html = stats_html + f'<div class="charts">{divs}</div>'
         else:
             charts_html = stats_html + '<p class="error-msg">No charts returned.</p>'
 
-    games_bar = build_games_bar(session_id, games, game, player)
-    players_panel  = build_players_panel(session_id, players, game, player)
+    games_bar = buildGamesBar(session_id, games, game, player)
+    players_panel  = buildPlayersPanel(session_id, players, game, player)
 
     return HTMLResponse(charts_html + games_bar + players_panel)
 
-def build_games_bar(session_id, games, active_game, player):
+def buildGamesBar(session_id, games, active_game, player):
     def btn(label, game_value):
         active = "active" if game_value == active_game else ""
         url = f"/charts/{session_id}?game={game_value}&player={player}"
@@ -147,7 +148,7 @@ def build_games_bar(session_id, games, active_game, player):
     </div>
     """
 
-def build_players_panel(session_id, players, game, active_player):
+def buildPlayersPanel(session_id, players, game, active_player):
     def pbtn(name, extra_class=""):
         active = "active" if name == active_player else ""
         url    = f"/charts/{session_id}?game={game}&player={name}"
@@ -184,7 +185,7 @@ def build_players_panel(session_id, players, game, active_player):
     </aside>
     """
 
-def sidebar_html(session_id, games, players, warnings, active_game, active_player):
+def sidebarHtml(session_id, games, players, warnings, active_game, active_player):
     warn_html = ""
     if warnings:
         items = "\n".join(f"<li>{w}</li>" for w in warnings)
@@ -195,11 +196,11 @@ def sidebar_html(session_id, games, players, warnings, active_game, active_playe
         </div>
         """
 
-    games_bar = build_games_bar(
+    games_bar = buildGamesBar(
         session_id, games, active_game, active_player
     ).replace('hx-swap-oob="true"', "")
 
-    players_panel = build_players_panel(
+    players_panel = buildPlayersPanel(
         session_id, players, active_game, active_player
     ).replace('hx-swap-oob="true"', "")
 
