@@ -13,5 +13,5 @@ might need to source again before running for the first time?
 
 run with
 ```
-uvicorn main:app --reload
+python main.py
 ```

@@ -64,6 +64,9 @@ def processUploads(file_list: list[tuple[str, bytes]]):
             warnings.append(f"Failed to read '{filename}': {exc}")
             continue
 
+        for col in df.select_dtypes(include="object").columns:
+            df[col] = df[col].str.strip()
+
         df.insert(0, "Game", opponent)
 
         combined[file_type].append(df)
