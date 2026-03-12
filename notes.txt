@@ -4,7 +4,25 @@ TODO LIST:
 [-] adjustable "short throw" distance
 
 FOR EACH PLAYER:
-- header: { total receptions, total yards, total goals, total drops }
+- main stats: 
+    - total goals
+    - total assists
+    - total secondary assists
+    - total defensive blocks
+    - total turnovers
+- nerd stats dropdown:
+    - throwing % (#/total)
+    - catching % (#/total)
+    - involvement
+    - total vertical yards (throwing and catching)
+    - total horizontal yards (throwing and catching)
+    - win % on offense (#/total)
+    - win % on defense (#/total)
+    - huck completion %
+    - sideline completion %
+    - redzone completion %
+    - initition completion %
+    - other completion %
 - touchmap graph
 - throwing & receiving vertical yard histogram
 
@@ -16,9 +34,6 @@ FOR TEAM:
 
 - O line specific graphs
 - D line specific graphs
-
-PER GAME:
-- heatmap of playtime
 
 PLAYER EFFICIENCY GRAPHS [ attempts / completion % ] :
 - hucks

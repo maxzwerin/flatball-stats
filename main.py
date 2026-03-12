@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 
 import plotly.io as pio
 
-from charts import getCharts
+from charts.init import getCharts
 import processor
 
 app = FastAPI()
@@ -28,40 +28,52 @@ def renderStats(title, stats):
     if not stats:
         return f'<h2 class="view-title">{title}</h2>'
 
-    groups = []  # list of (header_name, [items])
-    current_header = None
-    current_items = []
-    for item in stats:
-        if "header" in item:
-            if current_header is not None:
-                groups.append((current_header, current_items))
-            current_header = item["header"]
-            current_items = []
-        else:
-            current_items.append(item)
-    if current_header is not None:
-        groups.append((current_header, current_items))
-
-    cols_html = ""
-    for header, items in groups:
-        rows = ""
+    def build_cols(items):
+        groups, current_header, current_items = [], None, []
         for item in items:
-            color = item.get("color", "neutral")
-            rows += f"""
-            <div class="stat-row">
-                <span class="stat-label">{item["label"]}</span>
-                <span class="stat-value stat-{color}">{item["value"]}</span>
+            if "header" in item:
+                if current_header is not None:
+                    groups.append((current_header, current_items))
+                current_header = item["header"]
+                current_items  = []
+            else:
+                current_items.append(item)
+        if current_header is not None:
+            groups.append((current_header, current_items))
+
+        cols_html = ""
+        for header, rows in groups:
+            rows_html = ""
+            for item in rows:
+                color = item.get("color", "neutral")
+                rows_html += f"""
+                <div class="stat-row">
+                    <span class="stat-label">{item["label"]}</span>
+                    <span class="stat-value stat-{color}">{item["value"]}</span>
+                </div>"""
+            cols_html += f"""
+            <div class="stat-col">
+                <div class="stat-col-header">{header}</div>
+                {rows_html}
             </div>"""
-        cols_html += f"""
-        <div class="stat-col">
-            <div class="stat-col-header">{header}</div>
-            {rows}
-        </div>"""
+        return cols_html
+
+    base_items     = [s for s in stats if not s.get("advanced")]
+    advanced_items = [s for s in stats if s.get("advanced")]
+
+    advanced_html = ""
+    if advanced_items:
+        advanced_html = f"""
+        <details class="stat-expandable">
+            <summary class="stat-expand-btn">+ ADVANCED</summary>
+            <div class="stat-columns advanced-cols">{build_cols(advanced_items)}</div>
+        </details>"""
 
     return f"""
     <div class="stats-bar">
         <h2 class="view-title">{title}</h2>
-        <div class="stat-columns">{cols_html}</div>
+        <div class="stat-columns">{build_cols(base_items)}</div>
+        {advanced_html}
     </div>
     """
 
@@ -162,7 +174,7 @@ def buildPlayersPanel(session_id, players, game, active_player):
         </button>
         """
 
-    team_buttons   = "".join(pbtn(v, "team-btn") for v in TEAM_VIEWS)
+    team_buttons   = "".join(pbtn(v) for v in TEAM_VIEWS)
     player_buttons = "".join(pbtn(p) for p in players)
 
     return f"""

@@ -1,10 +1,11 @@
-BACKGROUND = "#0d0f14"
-WHITE      = "#ffffff"
-BLUE       = "#6495ed"
-LIGHTBLUE  = "#89cff0"
-GREEN      = "#00ff40"
-RED        = "#e23d28"
-PURPLE     = "#df73ff"
+BACKGROUND = "hsl(230, 30%, 5%)"
+WHITE      = "hsl(220, 20%, 99%)"
+BLUE       = "hsl(220, 80%, 60%)"
+LIGHTBLUE  = "hsl(220, 80%, 85%)"
+GREEN      = "hsl(140, 80%, 50%)"
+RED        = "hsl(10,  80%, 50%)"
+PURPLE     = "hsl(290, 90%, 70%)"
+GRAY       = "hsl(220, 20%, 65%)"
 
 X_MIN, X_MAX = 0, 40
 Y_MIN, Y_MAX = 0, 110

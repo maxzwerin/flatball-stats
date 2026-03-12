@@ -40,80 +40,110 @@ def teamStats(passes, possessions):
 def playerStats(passes, stats_df, player):
     p = stats_df[stats_df["Player"] == player]
 
-    def col(name): return 0 if p.empty else int(p[name].sum())
+    def col(name):  return 0   if p.empty else int(p[name].sum())
     def fcol(name): return 0.0 if p.empty else float(p[name].sum())
 
-    # raw counting stats
-    throws      = col("Throws")
-    completions = throws - col("Thrower errors")
-    throwaways  = col("Thrower errors")
-    catches     = col("Catches")
-    drops       = col("Receiver errors")
+    # --- main counting stats ---
     goals       = col("Goals")
     assists     = col("Assists")
     sec_assists = col("Secondary assists")
-    turnovers   = col("Turnovers")
     blocks      = col("Defensive blocks")
-    o_pts       = col("Offense points played")
-    d_pts       = col("Defense points played")
-    o_won       = col("Offense points won")
-    d_won       = col("Defense points won")
-    touches     = col("Touches")
+    turnovers   = col("Turnovers")
+
+    # --- nerd: involvement ---
     pts_played  = col("Points played total")
     pts_touched = col("Points played with touches")
-    dist_thrown = col("Total completed throw distance (m)")
-    dist_caught = col("Total caught pass distance (m)")
+    involvement = round(pts_touched / pts_played * 100) if pts_played else 0
 
-    # derived stats
-    comp_pct      = round(completions / throws * 100)          if throws                    else 0
-    catch_pct     = round(catches / (catches + drops) * 100)   if (catches + drops)         else 0
-    o_win_pct     = round(o_won / o_pts * 100)                 if o_pts                     else 0
-    d_win_pct     = round(d_won / d_pts * 100)                 if d_pts                     else 0
-    plus_minus    = (goals + assists + blocks) - turnovers + (sec_assists / 2)
-    yards_per_throw = round(dist_thrown / completions)         if completions               else 0
-    involvement   = round(pts_touched / pts_played * 100)      if pts_played                else 0
+    # --- nerd: win % ---
+    o_pts   = col("Offense points played")
+    d_pts   = col("Defense points played")
+    o_won   = col("Offense points won")
+    d_won   = col("Defense points won")
+    o_win_pct = round(o_won / o_pts * 100) if o_pts else 0
+    d_win_pct = round(d_won / d_pts * 100) if d_pts else 0
 
-    player_passes = passes[passes["Thrower"] == player]
-    total_throws  = len(player_passes)
-    huck_pct      = round(player_passes["Huck?"].sum()  / total_throws * 100) if total_throws else 0
-    dump_pct      = round(player_passes["Dump?"].sum()  / total_throws * 100) if total_throws else 0
-    swing_pct     = round(player_passes["Swing?"].sum() / total_throws * 100) if total_throws else 0
-    rz_assists    = int(player_passes[
-        (player_passes["Assist?"] == 1) & (player_passes["Throw to endzone?"] == 1)
-    ].shape[0])
+    # --- nerd: yards ---
+    throw_vert = fcol("Total completed throw gain (m)")
+    catch_vert = fcol("Total caught pass gain (m)")
+    throw_dist = fcol("Total completed throw distance (m)")
+    catch_dist = fcol("Total caught pass distance (m)")
+    total_vert = round(throw_vert + catch_vert)
+    # horizontal approximated as pythagorean remainder
+    throw_horiz = sum(
+        abs(row["Left-to-right distance (m)"])
+        for _, row in passes[passes["Thrower"] == player].iterrows()
+        if row["Turnover?"] == 0
+    )
+    catch_horiz = sum(
+        abs(row["Left-to-right distance (m)"])
+        for _, row in passes[passes["Receiver"] == player].iterrows()
+        if row["Turnover?"] == 0
+    )
+    total_horiz = round(throw_horiz + catch_horiz)
+
+    # --- nerd: throwing/catching % ---
+    throws_all  = passes[passes["Thrower"] == player]
+    catches_all = passes[passes["Receiver"] == player]
+    total_throws  = len(throws_all)
+    total_catches = len(catches_all)
+    throw_comp  = int((throws_all["Turnover?"]  == 0).sum())
+    catch_comp  = int((catches_all["Turnover?"] == 0).sum())  # non-drop catches
+    throw_pct   = round(throw_comp  / total_throws  * 100) if total_throws  else 0
+    catch_pct   = round(catch_comp  / total_catches * 100) if total_catches else 0
+
+    # --- nerd: completion % by category ---
+    def comp_pct_str(mask):
+        subset = throws_all[mask]
+        total  = len(subset)
+        if total == 0: return "N/A"
+        comp = int((subset["Turnover?"] == 0).sum())
+        return f"{round(comp / total * 100)}% ({comp}/{total})"
+
+    # initiation = first throw of each possession
+    first_throws = (
+        passes.sort_values("Created")
+              .groupby(["Game", "Possession"], sort=False)
+              .first()
+              .reset_index()
+    )
+    initiation_ids = set(first_throws.index)
+    player_throw_idx = throws_all.index
+
+    huck_mask     = throws_all["Huck?"]         == 1
+    sideline_mask = (throws_all["From sideline?"] == 1) | (throws_all["To sideline?"] == 1)
+    redzone_mask  = throws_all["Throw to endzone?"] == 1
+    init_mask     = throws_all.index.isin(
+        first_throws[first_throws["Thrower"] == player].index
+    )
+    other_mask    = ~huck_mask & ~sideline_mask & ~redzone_mask & ~init_mask
 
     return [
-        {"header": "BIG PICTURE"},
-        {"label": "+/-",          "value": f"{'+' if plus_minus >= 0 else ''}{plus_minus}", "color": "good" if plus_minus >= 0 else "bad"},
-        {"label": "INVOLVEMENT",  "value": f"{involvement}%", "color": "neutral"},
-        {"label": "O-WIN %",      "value": f"{o_win_pct}%",   "color": "good" if o_win_pct >= 50 else "bad"},
-        {"label": "D-WIN %",      "value": f"{d_win_pct}%",   "color": "good" if d_win_pct >= 50 else "bad"},
+        # --- main stats ---
+        {"header": "OFFENSE"},
+        {"label": "GOALS",       "value": goals,       "color": "good"},
+        {"label": "ASSISTS",     "value": assists,      "color": "good"},
+        {"label": "SEC ASSISTS", "value": sec_assists,  "color": "good"},
+        {"header": "DEFENSE"},
+        {"label": "D-BLOCKS",   "value": blocks,    "color": "good"},
+        {"label": "TURNOVERS",  "value": turnovers, "color": "bad"},
 
-        {"header": "THROWING"},
-        {"label": "COMP %",         "value": f"{comp_pct}%",    "color": "good" if comp_pct >= 80 else "bad"},
-        {"label": "COMPLETIONS",    "value": completions,        "color": "good"},
-        {"label": "THROWAWAYS",     "value": throwaways,         "color": "bad"},
-        {"label": "ASSISTS",        "value": assists,            "color": "good"},
-        {"label": "SEC. ASSISTS",   "value": sec_assists,        "color": "good"},
-        {"label": "RZ ASSISTS",     "value": rz_assists,         "color": "good"},
-        {"label": "YDS/THROW",      "value": f"{yards_per_throw}m", "color": "neutral"},
-        {"label": "DIST. THROWN",   "value": f"{dist_thrown}m", "color": "neutral"},
+        # --- nerd stats (advanced=True) ---
+        {"header": "EFFICIENCY", "advanced": True},
+        {"label": "THROW %",     "value": f"{throw_pct}% ({throw_comp}/{total_throws})",   "color": "good" if throw_pct >= 80 else "bad",  "advanced": True},
+        {"label": "CATCH %",     "value": f"{catch_pct}% ({catch_comp}/{total_catches})",  "color": "good" if catch_pct >= 90 else "bad",  "advanced": True},
+        {"label": "INVOLVEMENT", "value": f"{involvement}%",                                "color": "neutral",                              "advanced": True},
+        {"label": "O-WIN %",     "value": f"{o_win_pct}% ({o_won}/{o_pts})",               "color": "good" if o_win_pct >= 50 else "bad",  "advanced": True},
+        {"label": "D-WIN %",     "value": f"{d_win_pct}% ({d_won}/{d_pts})",               "color": "good" if d_win_pct >= 50 else "bad",  "advanced": True},
 
-        {"header": "THROWING STYLE"},
-        {"label": "HUCK %",  "value": f"{huck_pct}%",  "color": "neutral"},
-        {"label": "DUMP %",  "value": f"{dump_pct}%",  "color": "neutral"},
-        {"label": "SWING %", "value": f"{swing_pct}%", "color": "neutral"},
+        {"header": "YARDS", "advanced": True},
+        {"label": "VERT YARDS",  "value": f"{total_vert}m",  "color": "neutral", "advanced": True},
+        {"label": "HORIZ YARDS", "value": f"{total_horiz}m", "color": "neutral", "advanced": True},
 
-        {"header": "RECEIVING"},
-        {"label": "CATCH %",     "value": f"{catch_pct}%", "color": "good" if catch_pct >= 90 else "bad"},
-        {"label": "CATCHES",     "value": catches,          "color": "good"},
-        {"label": "DROPS",       "value": drops,            "color": "bad"},
-        {"label": "GOALS",       "value": goals,            "color": "good"},
-        {"label": "DIST. CAUGHT","value": f"{dist_caught}m","color": "neutral"},
-
-        {"header": "DEFENSE & MISC"},
-        {"label": "D-BLOCKS",    "value": blocks,    "color": "good"},
-        {"label": "TURNOVERS",   "value": turnovers, "color": "bad"},
-        {"label": "O-PTS PLAYED","value": o_pts,     "color": "neutral"},
-        {"label": "D-PTS PLAYED","value": d_pts,     "color": "neutral"},
+        {"header": "COMPLETION BY TYPE", "advanced": True},
+        {"label": "HUCK",      "value": comp_pct_str(huck_mask),     "color": "neutral", "advanced": True},
+        {"label": "SIDELINE",  "value": comp_pct_str(sideline_mask), "color": "neutral", "advanced": True},
+        {"label": "RED ZONE",  "value": comp_pct_str(redzone_mask),  "color": "neutral", "advanced": True},
+        {"label": "INITIATION","value": comp_pct_str(init_mask),     "color": "neutral", "advanced": True},
+        {"label": "OTHER",     "value": comp_pct_str(other_mask),    "color": "neutral", "advanced": True},
     ]
