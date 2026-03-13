@@ -58,22 +58,12 @@ def renderStats(title, stats):
             </div>"""
         return cols_html
 
-    base_items     = [s for s in stats if not s.get("advanced")]
-    advanced_items = [s for s in stats if s.get("advanced")]
-
-    advanced_html = ""
-    if advanced_items:
-        advanced_html = f"""
-        <details class="stat-expandable">
-            <summary class="stat-expand-btn">+ ADVANCED</summary>
-            <div class="stat-columns advanced-cols">{build_cols(advanced_items)}</div>
-        </details>"""
+    base_items = [s for s in stats]
 
     return f"""
     <div class="stats-bar">
         <h2 class="view-title">{title}</h2>
         <div class="stat-columns">{build_cols(base_items)}</div>
-        {advanced_html}
     </div>
     """
 

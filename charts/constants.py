@@ -5,6 +5,7 @@ LIGHTBLUE  = "hsl(220, 80%, 85%)"
 GREEN      = "hsl(140, 80%, 50%)"
 RED        = "hsl(10,  80%, 50%)"
 PURPLE     = "hsl(290, 90%, 70%)"
+LIGHTGRAY  = "hsl(220, 20%, 80%)"
 GRAY       = "hsl(220, 20%, 65%)"
 
 X_MIN, X_MAX = 0, 40

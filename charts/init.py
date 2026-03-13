@@ -18,8 +18,8 @@ def getCharts(data, game, player):
     if player == "Touchmaps": 
         figs.extend(genTeamPasses(passes))
     elif player == "Play Time": 
-        figs.append(genPlaytimeHeatmap(stats, possessions ,game))
-        return buildTitle(game, player), None, figs
+        figs.append(genPlaytimeHeatmap(stats, points, game))
+        return buildTitle(game, player), getStats(data, game, player), figs
     elif player == "Efficiency":
         return buildTitle(game, player), None, figs
     elif player == "Distribution":

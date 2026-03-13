@@ -2,19 +2,19 @@ import plotly.graph_objects as go
 from .constants import *
 
 PASS_LEGEND = {
-    "Throwaway":  RED,
-    "Drop":       PURPLE,
-    "Assist":     GREEN,
-    "Short Pass": LIGHTBLUE,
-    "Long Pass":  BLUE,
+    "Throwaways": RED,
+    "Drops": PURPLE,
+    "Assists": GREEN,
+    "Short Passes": LIGHTBLUE,
+    "Long Passes": BLUE,
 }
 
 RECEP_LEGEND = {
-    "Drop":       RED,
-    "Throwaway":  PURPLE,
-    "Goal":       GREEN,
-    "Short Pass": LIGHTBLUE,
-    "Long Pass":  BLUE,
+    "Drops": RED,
+    "Throwaways": PURPLE,
+    "Goals": GREEN,
+    "Short Passes": LIGHTBLUE,
+    "Long Passes": BLUE,
 }
 
 def createFigure(title):
@@ -57,8 +57,8 @@ def makeTrace(sx, sy, ex, ey, color, group):
     )
 
 def buildFig(title, data, render_order, legend, thrower=True):
-    fig            = createFigure(title)
-    buckets        = {c: [] for c in render_order}
+    fig = createFigure(title)
+    buckets = {c: [] for c in render_order}
     color_to_group = {color: name for name, color in legend.items()}
 
     for _, row in data.iterrows():
@@ -68,8 +68,8 @@ def buildFig(title, data, render_order, legend, thrower=True):
         ey = Y_MAX + row[ENDY]   * (Y_MIN - Y_MAX)
         short = row['Distance (m)'] < 10 or sy > ey
 
-        if     thrower and row['Thrower error?']:    color = RED
-        elif   thrower and row['Receiver error?']:   color = PURPLE
+        if thrower and row['Thrower error?']:        color = RED
+        elif thrower and row['Receiver error?']:     color = PURPLE
         elif not thrower and row['Receiver error?']: color = PURPLE
         elif not thrower and row['Thrower error?']:  color = RED
         elif row['Assist?']:                         color = GREEN
@@ -83,7 +83,15 @@ def buildFig(title, data, render_order, legend, thrower=True):
         for trace in buckets[color]:
             fig.add_trace(trace)
 
-    addLegend(fig, legend)
+    total = sum(len(t) for t in buckets.values())
+    fig.update_layout(title=f"{title} ({total})")
+
+    counts = {color: len(traces) for color, traces in buckets.items()}
+    counted_legend = {
+        f"{name} ({counts.get(color, 0)})": color
+        for name, color in legend.items()
+    }
+    addLegend(fig, counted_legend)
     return fig
 
 def genPasses(data):
@@ -113,8 +121,8 @@ def genTeamPasses(data):
         "Midfield Huck Passes":   huck & ~sideline,
         "Sideline Huck Passes":   huck &  sideline,
         "Sideline Short Passes": ~huck &  sideline,
-        "Redzone Passes":          redzone,
-        "Other Passes":           ~huck & ~sideline & ~redzone,
+        "Redzone Passes":         redzone,
+        "Other Passes":          ~huck & ~sideline & ~redzone,
     }
 
     return [
