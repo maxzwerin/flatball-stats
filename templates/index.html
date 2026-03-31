@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Demo</title>
+<title>flatballstats</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -30,6 +30,7 @@
         --orange:        hsl(30,  90%, 70%);
         --orange-dim:    hsl(30,  90%, 92%);
         --green:         hsl(140, 80%, 50%);
+        --green-dark:    hsl(140, 80%, 40%);
         --red:           hsl(10,  80%, 50%);
         --purple:        hsl(290, 90%, 70%);
 
@@ -41,7 +42,7 @@
         --blue-hover:    hsl(220, 80%, 50%);
 
         --sans:   'Inter', sans-serif;
-        --gutter: 1.5rem;
+        --gutter: 0.5rem;
     }
 
     body {
@@ -140,6 +141,13 @@
 
     .upload-send-btn:hover {
         background: var(--blue-hover);
+    }
+
+    .upload-success {
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--green-dark);
+        white-space: nowrap;
     }
 
     /* ── htmx ── */
@@ -270,9 +278,17 @@
         width: auto;
     }
 
-    /* ── charts ── */
+    .chart-title {
+        background:    var(--bg-light);
+        border:        1px solid var(--border);
+        padding:       1rem;
+        margin-bottom: var(--gutter);
+        font-weight:   700;
+    }
+
     .chart-section {
         min-height: 300px;
+        overflow-x: auto;
     }
 
     #chart-area {
@@ -281,9 +297,9 @@
     }
 
     .charts {
-        display:               grid;
-        grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-        gap:                   var(--gutter);
+        display: flex;
+        flex-direction: column;
+        gap: var(--gutter);
     }
 
     .chart-wrapper {
@@ -292,95 +308,14 @@
         overflow:   hidden;
     }
 
-    /* ── stats ── */
-    .view-title {
-        font-size:      1.1rem;
-        font-weight:    700;
-        color:          var(--text);
-        letter-spacing: .04em;
-        margin-bottom:  .9rem;
-    }
-
-    .stats-bar {
+    .stats {
         background:    var(--bg-light);
         border:        1px solid var(--border);
-        padding:       1rem 1.25rem;
+        padding:       1rem;
         margin-bottom: var(--gutter);
+        display:       flex;
     }
 
-    .stat-columns {
-        display:    flex;
-        gap:        2rem;
-        flex-wrap:  wrap;
-        margin-top: .6rem;
-    }
-
-    .stat-col {
-        display:        flex;
-        flex-direction: column;
-        gap:            .35rem;
-        min-width:      200px;
-    }
-
-    .stat-col-header {
-        font-size:      .72rem;
-        font-weight:    700;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        color:          var(--text-muted);
-        margin-bottom:  .3rem;
-    }
-
-    .stat-row {
-        display:         flex;
-        justify-content: space-between;
-        gap:             1rem;
-    }
-
-    .stat-label {
-        font-size: .9rem;
-        color:     var(--text-muted);
-    }
-
-    .stat-value {
-        font-size:   .9rem;
-        font-weight: 600;
-    }
-
-    .stat-value.stat-good {
-        color: var(--green);
-    }
-
-    .stat-value.stat-bad {
-        color: var(--red);
-    }
-
-    .stat-value.stat-neutral {
-        color: var(--text);
-    }
-
-    .stat-expandable {
-        list-style:  none;
-        margin-top:  .75rem;
-    }
-
-    .stat-expand-btn {
-        font-size:   .8rem;
-        font-weight: 500;
-        color:       var(--text-muted);
-        cursor:      pointer;
-        user-select: none;
-    }
-
-    .stat-expand-btn:hover {
-        color: var(--text);
-    }
-
-    details[open] .stat-expand-btn {
-        color: var(--blue);
-    }
-
-    /* ── states ── */
     .loading-pulse {
         font-size:  .88rem;
         color:      var(--text-muted);
@@ -431,6 +366,34 @@
         max-width:  340px;
     }
 
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .htmx-request .loading-overlay,
+    .htmx-request.loading-overlay {
+        display: flex;
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid var(--border);
+        border-top: 5px solid var(--blue);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
     /* ── scrollbar ── */
     ::-webkit-scrollbar {
         width:  4px;
@@ -450,8 +413,8 @@
 <body>
 
 <header class="page-header">
-    <div class="logo">PLACE<span>HOLDER</span></div>
-    <div class="header-sub">PLACEHOLDER2</div>
+    <div class="logo">flatball<span>stats</span></div>
+    <div class="header-sub">version 1.0.0</div>
 </header>
 
 <form
@@ -460,28 +423,27 @@
   hx-target="#workspace"
   hx-swap="innerHTML"
   hx-encoding="multipart/form-data"
-  hx-indicator="#upload-indicator">
+  hx-indicator="#upload-indicator"
+  hx-trigger="change from:input[type='file']">
 
   <label class="upload-btn">
     UPLOAD FILES
     <input type="file" name="files" multiple accept=".csv" />
   </label>
 
-  <button type="submit" class="upload-send-btn">LOAD</button>
+  <div id="upload-status"></div>
 
-  <span id="upload-indicator" class="htmx-indicator loading-pulse" style="padding:0">
-    Processing...
-  </span>
-
+  <div id="upload-indicator" class="htmx-indicator loading-overlay">
+    <div class="spinner"></div>
+  </div>
 </form>
 
 <main>
   <div id="workspace">
-    <div class="empty-state">
-      <div class="empty-state-icon">⬡</div>
-      <div class="empty-state-title">NO DATA LOADED</div>
-      <div class="empty-state-sub">Upload your CSV exports above.</div>
-    </div>
+      <div class="empty-state">
+        <div class="empty-state-title">NO DATA LOADED</div>
+        <div class="empty-state-sub">Upload your CSV exports above.</div>
+      </div>
   </div>
 </main>
 
