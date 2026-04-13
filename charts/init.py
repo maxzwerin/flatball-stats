@@ -1,4 +1,4 @@
-from .passes       import genTeamPasses, genPasses, genReceptions
+from .passes       import *
 from .heatmap      import genPlaytimeHeatmap
 from .stats        import getStats
 from .utils        import buildTitle, passesFiltered
@@ -47,7 +47,8 @@ def getCharts(data, game, player):
         receps = passes[passes["Receiver"] == player]
 
         figs.append(getStats(data, game, player))
-        figs.append(genPasses(throws))
-        figs.append(genReceptions(receps))
+        figs.append(genPassesAndReceptions(throws, receps))
+        # figs.append(genPasses(throws))
+        # figs.append(genReceptions(receps))
 
     return buildTitle(game, player), figs

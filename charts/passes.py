@@ -79,34 +79,34 @@ def buildBuckets(data, legend, thrower, render_order):
         buckets[c].append(makeTrace(sx, sy, ex, ey, c, color_to_group[c]))
     return buckets
 
-def buildFig(title, data, render_order, legend, thrower=True):
-    fig = go.Figure()
-    fig.update_layout(
-        title=dict(text=title, x=0.12, y=0.96, font=dict(size=15)),
-        width=400, height=700,
-        plot_bgcolor=WHITE, paper_bgcolor=WHITE,
-        margin=dict(l=50, r=0, t=50, b=50),
-    )
-    addFieldStyle(fig)
-
-    buckets = buildBuckets(data, legend, thrower, render_order)
-    for c in render_order:
-        for trace in buckets[c]:
-            fig.add_trace(trace)
-
-    total = sum(len(v) for v in buckets.values())
-    fig.update_layout(title=dict(text=f"{title} ({total})"))
-
-    counts = {c: len(v) for c, v in buckets.items()}
-    for name, color in legend.items():
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None], mode="lines",
-            line=dict(color=color, width=3),
-            name=f"{name} ({counts.get(color, 0)})",
-            legendgroup=name, showlegend=True,
-        ))
-
-    return fig
+# def buildFig(title, data, render_order, legend, thrower=True):
+#     fig = go.Figure()
+#     fig.update_layout(
+#         title=dict(text=title, x=0.12, y=0.96, font=dict(size=15)),
+#         width=400, height=700,
+#         plot_bgcolor=WHITE, paper_bgcolor=WHITE,
+#         margin=dict(l=50, r=0, t=50, b=50),
+#     )
+#     addFieldStyle(fig)
+#
+#     buckets = buildBuckets(data, legend, thrower, render_order)
+#     for c in render_order:
+#         for trace in buckets[c]:
+#             fig.add_trace(trace)
+#
+#     total = sum(len(v) for v in buckets.values())
+#     fig.update_layout(title=dict(text=f"{title} ({total})"))
+#
+#     counts = {c: len(v) for c, v in buckets.items()}
+#     for name, color in legend.items():
+#         fig.add_trace(go.Scatter(
+#             x=[None], y=[None], mode="lines",
+#             line=dict(color=color, width=3),
+#             name=f"{name} ({counts.get(color, 0)})",
+#             legendgroup=name, showlegend=True,
+#         ))
+#
+#     return fig
 
 def buildTeamFig(fig, title, data, row, col):
     render_order = (BLUE, LIGHTBLUE, GREEN, PURPLE, RED)
@@ -122,18 +122,18 @@ def buildTeamFig(fig, title, data, row, col):
     fig.layout.annotations[col - 1].text = title
     fig.layout.annotations[col - 1].font.size=15
     addFieldStyle(fig, row=row, col=col)
-
-def genPasses(data):
-    fig = buildFig("Passes", data,
-          render_order=(BLUE, LIGHTBLUE, GREEN, PURPLE, RED),
-          legend=PASS_LEGEND, thrower=True)
-    return fig
-
-def genReceptions(data):
-    fig = buildFig("Receptions", data,
-          render_order=(BLUE, LIGHTBLUE, GREEN, RED, PURPLE),
-          legend=RECEP_LEGEND, thrower=False)
-    return fig
+#
+# def genPasses(data):
+#     fig = buildFig("Passes", data,
+#           render_order=(BLUE, LIGHTBLUE, GREEN, PURPLE, RED),
+#           legend=PASS_LEGEND, thrower=True)
+#     return fig
+#
+# def genReceptions(data):
+#     fig = buildFig("Receptions", data,
+#           render_order=(BLUE, LIGHTBLUE, GREEN, RED, PURPLE),
+#           legend=RECEP_LEGEND, thrower=False)
+#     return fig
 
 def genTeamPasses(data, header):
     h = data['Huck?'] == 1
@@ -149,7 +149,7 @@ def genTeamPasses(data, header):
     fig.update_layout(
         title=dict(text=header, x=0.01, y=0.96, font=dict(size=15)),
         plot_bgcolor=WHITE, paper_bgcolor=WHITE,
-        width=900, height=700,
+        height=700,#width=900, 
         margin=dict(l=10, r=10, t=80, b=20),
         legend=dict(orientation="h", x=0.01, y=-0.01)
     )
@@ -163,5 +163,89 @@ def genTeamPasses(data, header):
             line=dict(color=color, width=3),
             name=name, legendgroup=name, showlegend=True,
         ))
+
+    return fig
+
+def addFieldStyleLegend(fig, legend_ref, row, col):
+    kw = dict(row=row, col=col)
+    for shape in FIELD_SHAPES:
+        fig.add_shape(**shape, layer="below", **kw)
+
+    marker = go.Scatter(
+        x=[20, 20], y=[40, 70], mode="markers",
+        marker=dict(symbol="x-thin", size=12, color=GRAY, line=dict(width=1, color=GRAY)),
+        showlegend=False, hoverinfo="skip",
+        legend=legend_ref,
+    )
+    fig.add_trace(marker, **kw)
+
+    axes_kw = dict(showticklabels=False, showgrid=False, showline=False, zeroline=False)
+    fig.update_xaxes(**axes_kw, range=[0, 40],  **kw)
+    fig.update_yaxes(**axes_kw, range=[0, 110], **kw)
+
+
+def genPassesAndReceptions(throws, receps):
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=["Passes", "Receptions"],
+        horizontal_spacing=0.35,
+    )
+    fig.update_layout(
+        plot_bgcolor=WHITE, paper_bgcolor=WHITE,
+        height=700,
+        margin=dict(l=20, r=20, t=60, b=20),
+        legend=dict(x=0.35, bgcolor="rgba(0,0,0,0)", borderwidth=0),
+        legend2=dict(bgcolor="rgba(0,0,0,0)", borderwidth=0),
+    )
+
+    render_order_p = (BLUE, LIGHTBLUE, GREEN, PURPLE, RED)
+    pass_buckets = buildBuckets(throws, PASS_LEGEND, thrower=True, render_order=render_order_p)
+    pass_counts = {c: len(v) for c, v in pass_buckets.items()}
+
+    for name, c in PASS_LEGEND.items():
+        for trace in pass_buckets[c]:
+            trace.legend = "legend"
+            trace.legendgroup = f"p_{name}"
+            fig.add_trace(trace, row=1, col=1)
+
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="lines",
+            line=dict(color=c, width=3),
+            name=f"{name} ({pass_counts.get(c, 0)})",
+            legendgroup=f"p_{name}",
+            legend="legend",
+            showlegend=True,
+        ))
+
+    addFieldStyleLegend(fig, "legend", row=1, col=1)
+
+    pass_total = sum(pass_counts.values())
+    fig.layout.annotations[0].text = f"Passes ({pass_total})"
+    fig.layout.annotations[0].font.size = 15
+
+    render_order_r = (BLUE, LIGHTBLUE, GREEN, RED, PURPLE)
+    recep_buckets = buildBuckets(receps, RECEP_LEGEND, thrower=False, render_order=render_order_r)
+    recep_counts = {c: len(v) for c, v in recep_buckets.items()}
+
+    for name, c in RECEP_LEGEND.items():
+        for trace in recep_buckets[c]:
+            trace.legend = "legend2"
+            trace.legendgroup = f"r_{name}"
+            fig.add_trace(trace, row=1, col=2)
+
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="lines",
+            line=dict(color=c, width=3),
+            name=f"{name} ({recep_counts.get(c, 0)})",
+            legendgroup=f"r_{name}",
+            legend="legend2",
+            showlegend=True,
+        ))
+
+    addFieldStyleLegend(fig, "legend2", row=1, col=2)
+
+    recep_total = sum(recep_counts.values())
+    fig.layout.annotations[1].text = f"Receptions ({recep_total})"
+    fig.layout.annotations[1].font.size = 15
 
     return fig
